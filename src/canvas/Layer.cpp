@@ -1,58 +1,48 @@
 #include "canvas/Layer.h"
-#include <algorithm>
+#include <cstddef>
+#include <utility>
 
-Layer::Layer(const std::string& ten)
-    : ten_(ten), hienThi_(true), khoa_(false) {}
+Layer::Layer(const std::string& ten) : ten_(ten), hien_(true), khoa_(false) {}
+
+void Layer::themHinh(std::unique_ptr<HinhHoc2D> h, std::size_t viTri) {
+    if (!h) return;   // nullptr: bỏ qua (không có gì để thêm)
+    if (viTri == npos || viTri >= hinh_.size()) {
+        hinh_.push_back(std::move(h));   // thêm vào cuối
+    } else {
+        hinh_.insert(hinh_.begin() + static_cast<std::ptrdiff_t>(viTri), std::move(h));   // chèn, các hình sau dịch xuống
+    }
+}
+
+std::unique_ptr<HinhHoc2D> Layer::layHinh(int id) {
+    const std::size_t i = viTriTheoId(id);
+    if (i == npos) return nullptr;       // không thấy: không đổi gì
+    std::unique_ptr<HinhHoc2D> ra = std::move(hinh_[i]);
+    hinh_.erase(hinh_.begin() + static_cast<std::ptrdiff_t>(i));   // bỏ phần tử rỗng, các hình sau dịch lên
+    return ra;
+}
+
+HinhHoc2D* Layer::timTheoId(int id) {
+    const std::size_t i = viTriTheoId(id);
+    return i == npos ? nullptr : hinh_[i].get();
+}
+
+const HinhHoc2D* Layer::timTheoId(int id) const {
+    const std::size_t i = viTriTheoId(id);
+    return i == npos ? nullptr : hinh_[i].get();
+}
+
+std::size_t Layer::viTriTheoId(int id) const {
+    for (std::size_t i = 0; i < hinh_.size(); ++i)
+        if (hinh_[i]->getId() == id) return i;
+    return npos;
+}
+
+HinhHoc2D& Layer::hinhThu(std::size_t i) { return *hinh_.at(i); }
+const HinhHoc2D& Layer::hinhThu(std::size_t i) const { return *hinh_.at(i); }
+std::size_t Layer::soHinh() const { return hinh_.size(); }
 
 const std::string& Layer::getTen() const { return ten_; }
-void Layer::setTen(const std::string& ten) { ten_ = ten; }
-bool Layer::isHienThi() const { return hienThi_; }
-void Layer::setHienThi(bool hienThi) { hienThi_ = hienThi; }
+bool Layer::isHien() const { return hien_; }
+void Layer::setHien(bool b) { hien_ = b; }
 bool Layer::isKhoa() const { return khoa_; }
-void Layer::setKhoa(bool khoa) { khoa_ = khoa; }
-
-void Layer::themHinh(std::unique_ptr<HinhHoc2D> hinh) {
-    if (hinh) danhSachHinh_.push_back(std::move(hinh));
-}
-
-void Layer::chenHinh(size_t viTri, std::unique_ptr<HinhHoc2D> hinh) {
-    if (!hinh) return;
-    if (viTri >= danhSachHinh_.size()) {
-        danhSachHinh_.push_back(std::move(hinh));
-    } else {
-        danhSachHinh_.insert(danhSachHinh_.begin() + viTri, std::move(hinh));
-    }
-}
-
-std::unique_ptr<HinhHoc2D> Layer::rutHinh(int id) {
-    for (auto it = danhSachHinh_.begin(); it != danhSachHinh_.end(); ++it) {
-        if ((*it)->getId() == id) {
-            auto hinh = std::move(*it);
-            danhSachHinh_.erase(it);
-            return hinh;
-        }
-    }
-    return nullptr;
-}
-
-HinhHoc2D* Layer::timTheoId(int id) const {
-    for (const auto& hinh : danhSachHinh_) {
-        if (hinh && hinh->getId() == id) return hinh.get();
-    }
-    return nullptr;
-}
-
-int Layer::timViTri(int id) const {
-    for (size_t i = 0; i < danhSachHinh_.size(); ++i) {
-        if (danhSachHinh_[i] && danhSachHinh_[i]->getId() == id) return static_cast<int>(i);
-    }
-    return -1;
-}
-
-const std::vector<std::unique_ptr<HinhHoc2D>>& Layer::getDanhSachHinh() const {
-    return danhSachHinh_;
-}
-
-size_t Layer::soLuongHinh() const {
-    return danhSachHinh_.size();
-}
+void Layer::setKhoa(bool b) { khoa_ = b; }

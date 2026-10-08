@@ -1,34 +1,33 @@
 #pragma once
+#include <cstddef>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 #include "shapes/HinhHoc2D.h"
+
 
 class Layer {
 private:
     std::string ten_;
-    bool hienThi_;
+    bool hien_;
     bool khoa_;
-    std::vector<std::unique_ptr<HinhHoc2D>> danhSachHinh_;
+    std::vector<std::unique_ptr<HinhHoc2D>> hinh_;
 
 public:
-    explicit Layer(const std::string& ten = "Layer");
-    Layer(const Layer&) = delete;
-    Layer& operator=(const Layer&) = delete;
-    Layer(Layer&&) noexcept = default;
-    Layer& operator=(Layer&&) noexcept = default;
-
+    static constexpr std::size_t npos = static_cast<std::size_t>(-1);
+    explicit Layer(const std::string& ten);
+    void themHinh(std::unique_ptr<HinhHoc2D> h, std::size_t viTri = npos);
+    std::unique_ptr<HinhHoc2D> layHinh(int id);
+    HinhHoc2D* timTheoId(int id);
+    const HinhHoc2D* timTheoId(int id) const;
+    std::size_t viTriTheoId(int id) const;
+    HinhHoc2D& hinhThu(std::size_t i);               
+    const HinhHoc2D& hinhThu(std::size_t i) const;
+    std::size_t soHinh() const;
     const std::string& getTen() const;
-    void setTen(const std::string& ten);
-    bool isHienThi() const;
-    void setHienThi(bool hienThi);
+    bool isHien() const;
+    void setHien(bool b);
     bool isKhoa() const;
-    void setKhoa(bool khoa);
-    void themHinh(std::unique_ptr<HinhHoc2D> hinh);
-    void chenHinh(size_t viTri, std::unique_ptr<HinhHoc2D> hinh);
-    std::unique_ptr<HinhHoc2D> rutHinh(int id);
-    HinhHoc2D* timTheoId(int id) const;
-    int timViTri(int id) const;
-    const std::vector<std::unique_ptr<HinhHoc2D>>& getDanhSachHinh() const;
-    size_t soLuongHinh() const;
+    void setKhoa(bool b);
 };
+

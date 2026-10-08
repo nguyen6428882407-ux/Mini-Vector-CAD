@@ -11,7 +11,12 @@ GroupShape::GroupShape(const GroupShape& other) : HinhHoc2D(other) {
 }
 
 void GroupShape::themHinh(std::unique_ptr<HinhHoc2D> hinh) {
-    if (hinh) danhSachCon_.push_back(std::move(hinh));
+    if (!hinh || hinh.get() == this) return;
+    danhSachCon_.push_back(std::move(hinh));
+}
+
+void GroupShape::them(std::unique_ptr<HinhHoc2D> hinh) {
+    themHinh(std::move(hinh));
 }
 
 std::unique_ptr<HinhHoc2D> GroupShape::rutHinh(int id) {
@@ -33,13 +38,26 @@ size_t GroupShape::soLuongCon() const {
     return danhSachCon_.size();
 }
 
+size_t GroupShape::soLuong() const {
+    return danhSachCon_.size();
+}
+
+HinhHoc2D& GroupShape::hinhThu(size_t i) {
+    return *danhSachCon_.at(i);
+}
+
+const HinhHoc2D& GroupShape::hinhThu(size_t i) const {
+    return *danhSachCon_.at(i);
+}
+
 void GroupShape::ve(std::ostream& os) const {
     os << "GroupShape #" << getId() << " (" << danhSachCon_.size() << " hinh)\n";
     for (const auto& con : danhSachCon_) {
         std::ostringstream ss;
         con->ve(ss);
+        std::istringstream iss(ss.str());
         std::string line;
-        while (std::getline(ss, line)) {
+        while (std::getline(iss, line)) {
             if (!line.empty()) os << "  " << line << "\n";
         }
     }
@@ -88,5 +106,12 @@ std::unique_ptr<GroupShape> operator+(std::unique_ptr<HinhHoc2D> a, std::unique_
     auto nhom = std::make_unique<GroupShape>();
     if (a) nhom->themHinh(std::move(a));
     if (b) nhom->themHinh(std::move(b));
+    return nhom;
+}
+
+std::unique_ptr<GroupShape> operator+(const HinhHoc2D& a, const HinhHoc2D& b) {
+    auto nhom = std::make_unique<GroupShape>();
+    nhom->themHinh(a.clone());
+    nhom->themHinh(b.clone());
     return nhom;
 }

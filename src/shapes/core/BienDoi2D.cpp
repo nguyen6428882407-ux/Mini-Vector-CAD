@@ -16,7 +16,7 @@ void cosSinDo(double gocDo, double& c, double& s) {
     if (MathUtils::bangNhau(g, 90.0))  { c = 0.0;  s = 1.0;  return; }
     if (MathUtils::bangNhau(g, 180.0)) { c = -1.0; s = 0.0;  return; }
     if (MathUtils::bangNhau(g, 270.0)) { c = 0.0;  s = -1.0; return; }
-    const double rad = MathUtils::doSangRad(g);
+    const double rad = MathUtils::tuDoSangRadian(g);
     c = std::cos(rad);
     s = std::sin(rad);
 }

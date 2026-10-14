@@ -6,7 +6,8 @@
 int main() {
     std::cout << "Khoi tao he thong Mini Vector CAD...\n";
     try {
-        BangVeCanvas canvas;
+        BangVeCanvas canvas(800.0, 600.0);
+        canvas.themLayer("Layer 1");
         CommandManager cmdMgr;
         MenuController app(canvas, cmdMgr);
         app.chay();

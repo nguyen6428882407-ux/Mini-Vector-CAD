@@ -1,22 +1,23 @@
 #include "commands/AddShapeCommand.h"
-#include "canvas/BangVeCanvas.h"
-#include "shapes/HinhHoc2D.h"
 #include <stdexcept>
+#include "canvas/BangVeCanvas.h"
 
-AddShapeCommand::AddShapeCommand(BangVeCanvas& canvas, size_t layerIdx, std::unique_ptr<HinhHoc2D> shape)
-    : canvas_(canvas), layerIdx_(layerIdx), shape_(std::move(shape)), shapeId_(-1) {
-    if (shape_) shapeId_ = shape_->getId();
-}
+// Lưu ý: id_ phải khởi tạo TRƯỚC hinh_ (đúng thứ tự khai báo) vì hinh_ sẽ bị move.
+AddShapeCommand::AddShapeCommand(BangVeCanvas& cv, std::size_t layerIdx, std::unique_ptr<HinhHoc2D> h)
+    : canvas_(cv),
+      layerIdx_(layerIdx),
+      id_(h ? h->getId() : -1),
+      hinh_(std::move(h)) {}
 
 void AddShapeCommand::execute() {
-    Layer& lay = canvas_.layer(layerIdx_);
-    if (!shape_) throw std::logic_error("Khong co doi tuong hinh de thuc thi AddShapeCommand.");
-    shapeId_ = shape_->getId();
-    lay.themHinh(std::move(shape_));
+    Layer& ly = canvas_.layer(layerIdx_);   // layerIdx_ sai -> out_of_range
+    if (!hinh_) throw std::logic_error("AddShapeCommand::execute: hinh da nam trong layer (execute 2 lan lien tiep)");
+    ly.themHinh(std::move(hinh_));          // id_ giu nguyen khi redo
 }
 
 void AddShapeCommand::undo() {
-    Layer& lay = canvas_.layer(layerIdx_);
-    shape_ = lay.rutHinh(shapeId_);
-    if (!shape_) throw std::out_of_range("Khong tim thay hinh de undo AddShapeCommand.");
+    Layer& ly = canvas_.layer(layerIdx_);
+    std::unique_ptr<HinhHoc2D> ra = ly.layHinh(id_);   // nullptr = chua doi gi
+    if (!ra) throw std::out_of_range("AddShapeCommand::undo: khong tim thay hinh trong layer");
+    hinh_ = std::move(ra);
 }

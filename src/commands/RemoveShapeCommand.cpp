@@ -1,21 +1,20 @@
 #include "commands/RemoveShapeCommand.h"
-#include "canvas/BangVeCanvas.h"
-#include "shapes/HinhHoc2D.h"
 #include <stdexcept>
+#include "canvas/BangVeCanvas.h"
 
-RemoveShapeCommand::RemoveShapeCommand(BangVeCanvas& canvas, size_t layerIdx, int shapeId)
-    : canvas_(canvas), layerIdx_(layerIdx), shapeId_(shapeId), removedShape_(nullptr), viTriCu_(-1) {}
+RemoveShapeCommand::RemoveShapeCommand(BangVeCanvas& cv, std::size_t layerIdx, int id)
+    : canvas_(cv), layerIdx_(layerIdx), id_(id), viTri_(Layer::npos) {}
 
 void RemoveShapeCommand::execute() {
-    Layer& lay = canvas_.layer(layerIdx_);
-    viTriCu_ = lay.timViTri(shapeId_);
-    removedShape_ = lay.rutHinh(shapeId_);
-    if (!removedShape_) throw std::out_of_range("Khong tim thay hinh ID #" + std::to_string(shapeId_) + " de xoa.");
+    Layer& ly = canvas_.layer(layerIdx_);
+    const std::size_t vt = ly.viTriTheoId(id_);
+    if (vt == Layer::npos) throw std::out_of_range("RemoveShapeCommand::execute: khong tim thay hinh trong layer");
+    hinh_ = ly.layHinh(id_);
+    viTri_ = vt;
 }
 
 void RemoveShapeCommand::undo() {
-    Layer& lay = canvas_.layer(layerIdx_);
-    if (!removedShape_) throw std::logic_error("Khong co du lieu hinh de undo RemoveShapeCommand.");
-    if (viTriCu_ >= 0) lay.chenHinh(static_cast<size_t>(viTriCu_), std::move(removedShape_));
-    else lay.themHinh(std::move(removedShape_));
+    Layer& ly = canvas_.layer(layerIdx_);
+    if (!hinh_) throw std::logic_error("RemoveShapeCommand::undo: chua xoa hinh nao (undo truoc execute)");
+    ly.themHinh(std::move(hinh_), viTri_);   // chen lai dung vi tri cu
 }

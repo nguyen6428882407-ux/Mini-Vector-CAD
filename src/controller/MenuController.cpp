@@ -157,6 +157,7 @@ void MenuController::xuLyThemHinh() {
     std::cout << " - doanthang <x1> <y1> <x2> <y2>\n";
     std::cout << " - tamgiac <x1> <y1> <x2> <y2> <x3> <y3>\n";
     std::cout << " - dagiac <x1> <y1> <x2> <y2> <x3> <y3> ...\n";
+    std::cout << " - brush <so_diem> <x1> <y1> <x2> <y2> ...\n";
     std::cout << " (Co the them: vien <r> <g> <b> [a], nen <r> <g> <b> [a], net <w>)\n";
     std::cout << "Nhap lenh tao hinh: ";
 
@@ -466,3 +467,4 @@ void MenuController::chay() {
         }
     }
 }
+

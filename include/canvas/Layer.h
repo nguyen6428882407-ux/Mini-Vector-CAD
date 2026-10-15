@@ -25,9 +25,11 @@ public:
     const HinhHoc2D& hinhThu(std::size_t i) const;
     std::size_t soHinh() const;
     const std::string& getTen() const;
+    void setTen(const std::string& ten);
     bool isHien() const;
     void setHien(bool b);
     bool isKhoa() const;
     void setKhoa(bool b);
 };
+
 

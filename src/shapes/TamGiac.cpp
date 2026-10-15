@@ -1,7 +1,9 @@
 #include "shapes/TamGiac.h"
 #include "core/BienDoi2D.h"
-#include <sstream>
+#include <algorithm>
 #include <cmath>
+#include <ostream>
+#include <sstream>
 
 TamGiac::TamGiac(const Diem2D& d1, const Diem2D& d2, const Diem2D& d3) : dinh_{d1, d2, d3} {}
 TamGiac::TamGiac(double x1, double y1, double x2, double y2, double x3, double y3)
@@ -14,16 +16,22 @@ void TamGiac::ve(std::ostream& os) const {
        << " d3=" << dinh_[2] << "\n";
 }
 
+// Tâm của HỘP BAO (theo hợp đồng HinhHoc2D::tam()), không phải trọng tâm.
 Diem2D TamGiac::tam() const {
-    return Diem2D((dinh_[0].getX() + dinh_[1].getX() + dinh_[2].getX()) / 3.0,
-                  (dinh_[0].getY() + dinh_[1].getY() + dinh_[2].getY()) / 3.0);
+    const double minX = std::min({dinh_[0].getX(), dinh_[1].getX(), dinh_[2].getX()});
+    const double maxX = std::max({dinh_[0].getX(), dinh_[1].getX(), dinh_[2].getX()});
+    const double minY = std::min({dinh_[0].getY(), dinh_[1].getY(), dinh_[2].getY()});
+    const double maxY = std::max({dinh_[0].getY(), dinh_[1].getY(), dinh_[2].getY()});
+    return Diem2D((minX + maxX) / 2.0, (minY + maxY) / 2.0);
 }
 
+// Công thức Shoelace cho 3 đỉnh, tính theo vector từ đỉnh d1 (tịnh tiến gốc về d1 để giảm
+// sai số triệt tiêu khi tọa độ lớn; kết quả toán học không đổi).
 double TamGiac::tinhDienTich() const {
-    double x1 = dinh_[0].getX(), y1 = dinh_[0].getY();
-    double x2 = dinh_[1].getX(), y2 = dinh_[1].getY();
-    double x3 = dinh_[2].getX(), y3 = dinh_[2].getY();
-    return std::abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)) / 2.0;
+    const double x1 = dinh_[0].getX(), y1 = dinh_[0].getY();
+    const double ax = dinh_[1].getX() - x1, ay = dinh_[1].getY() - y1;
+    const double bx = dinh_[2].getX() - x1, by = dinh_[2].getY() - y1;
+    return std::abs(ax * by - bx * ay) / 2.0;
 }
 
 double TamGiac::tinhChuVi() const {

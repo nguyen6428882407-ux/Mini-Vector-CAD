@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10151d">
+  <title>Mini Vector CAD</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Mini Vector CAD">
+      <span class="brand-mark">V</span>
+      <span>mini<span class="brand-light">vector</span><small>CAD STUDIO</small></span>
+    </a>
+    <div class="document-name"><span class="status-dot"></span> Bản vẽ chưa lưu <span class="muted">·</span> 800 × 600</div>
+    <div class="top-actions">
+      <button class="button button-quiet" id="undo" title="Hoàn tác (Ctrl+Z)" disabled>↶ <span>Hoàn tác</span></button>
+      <button class="button button-quiet" id="redo" title="Làm lại (Ctrl+Y)" disabled>↷ <span>Làm lại</span></button>
+      <button class="button button-quiet theme-toggle" id="theme-toggle" title="Chuyển giao diện sáng/tối" aria-label="Chuyển giao diện sáng/tối">☀ <span>Sáng</span></button>
+      <button class="button button-primary" id="export">↓ <span>Xuất SVG</span></button>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <aside class="tool-rail" aria-label="Công cụ vẽ">
+      <div class="tool-group">
+        <button class="tool active" data-tool="select" title="Chọn, di chuyển, đổi kích thước và xoay (V)" aria-label="Chọn, di chuyển, đổi kích thước và xoay"><span>↖</span></button>
+        <button class="tool" data-tool="rect" title="Hình chữ nhật (R)" aria-label="Hình chữ nhật"><span>▭</span></button>
+        <button class="tool" data-tool="circle" title="Hình tròn (C)" aria-label="Hình tròn"><span>◯</span></button>
+        <button class="tool" data-tool="line" title="Đoạn thẳng (L)" aria-label="Đoạn thẳng"><span>／</span></button>
+        <button class="tool" data-tool="triangle" title="Tam giác (T)" aria-label="Tam giác"><span>△</span></button>
+        <button class="tool" data-tool="brush" title="Bút vẽ tự do (P)" aria-label="Bút vẽ tự do"><span>✎</span></button>
+        <button class="tool" data-tool="eraser" title="Gôm (E)" aria-label="Gôm"><span>⌫</span></button>
+      </div>
+      <div class="rail-spacer"></div>
+      <button class="tool tool-bottom" id="help" title="Phím tắt" aria-label="Phím tắt">?</button>
+    </aside>
+
+    <section class="workspace">
+      <div class="canvas-toolbar">
+        <div class="breadcrumb"><span>Bản vẽ</span><span class="slash">/</span><strong>Untitled</strong></div>
+        <div class="canvas-actions">
+          <span class="zoom-label" id="zoom-label">100%</span>
+          <button class="icon-button" id="zoom-out" title="Thu nhỏ">−</button>
+          <button class="icon-button" id="zoom-in" title="Phóng to">+</button>
+          <button class="icon-button" id="fit" title="Vừa khung">⛶</button>
+        </div>
+      </div>
+      <div class="canvas-stage" id="canvas-stage">
+        <svg id="drawing" viewBox="0 0 800 600" role="img" aria-label="Vùng vẽ vector">
+          <defs>
+            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#dfe5ec" stroke-width="1"/>
+            </pattern>
+          </defs>
+          <rect class="grid-bg" width="800" height="600" fill="url(#grid)"/>
+          <g id="artwork"></g>
+          <rect class="canvas-outline" x=".5" y=".5" width="799" height="599" fill="none" pointer-events="none"/>
+        </svg>
+        <div class="selection-toolbar" id="selection-toolbar" role="toolbar" aria-label="Thao tác hình đã chọn" hidden>
+          <button class="selection-action" id="copy-shape" title="Sao chép hình (Ctrl+C)">⧉ <span>Sao chép</span></button>
+          <button class="selection-action" id="duplicate-shape" title="Tạo bản sao">＋ <span>Nhân bản</span></button>
+          <button class="selection-action" id="paste-shape" title="Dán hình (Ctrl+V)" disabled>▣ <span>Dán</span></button>
+          <span class="selection-toolbar-divider"></span>
+          <button class="selection-action delete-action" id="delete-shape" title="Xóa hình đã chọn">⌫ <span>Xóa</span></button>
+        </div>
+        <div class="canvas-hint" id="canvas-hint">Chọn công cụ hình để bắt đầu vẽ</div>
+      </div>
+      <footer class="statusbar">
+        <span id="status-message">Sẵn sàng</span>
+        <span><i class="status-dot"></i> <span id="backend-status">Đang kết nối C++...</span></span>
+        <span id="cursor-position">X: — &nbsp; Y: —</span>
+      </footer>
+    </section>
+
+    <aside class="inspector">
+      <div class="panel-section layers-section">
+        <div class="section-heading">
+          <div><span class="eyebrow">CẤU TRÚC</span><h2>Layers</h2></div>
+          <button class="icon-button add-layer" id="add-layer" title="Thêm layer">＋</button>
+        </div>
+        <div class="layer-list" id="layer-list"></div>
+      </div>
+
+      <div class="panel-section properties-section">
+        <div class="section-heading">
+          <div><span class="eyebrow">THUỘC TÍNH</span><h2 id="selection-title">Chưa chọn hình</h2></div>
+        </div>
+        <p class="property-empty" id="property-empty">Chọn một hình trên canvas để chỉnh màu và nét vẽ.</p>
+        <div class="property-controls" id="property-controls" hidden>
+          <label class="color-property"><span>Màu viền</span><input id="stroke-color" type="color" value="#334155"></label>
+          <label class="color-property"><span>Màu nền</span><input id="fill-color" type="color" value="#dbeafe"></label>
+          <label class="range-property"><span>Độ dày <output id="width-value">2</output></span><input id="stroke-width" type="range" min="1" max="12" value="2"></label>
+        </div>
+        <div class="tool-properties" id="brush-controls" hidden>
+          <label class="color-property"><span>Màu bút</span><input id="brush-color" type="color" value="#334155"></label>
+          <label class="range-property"><span>Cỡ bút <output id="brush-width-value">6</output></span><input id="brush-width" type="range" min="1" max="40" value="6"></label>
+          <label class="range-property" id="brush-opacity-control"><span>Độ đậm <output id="brush-opacity-value">100%</output></span><input id="brush-opacity" type="range" min="10" max="100" value="100"></label>
+        </div>
+        <div class="tool-properties" id="eraser-controls" hidden>
+          <label class="range-property"><span>Cỡ gôm <output id="eraser-width-value">18</output></span><input id="eraser-width" type="range" min="4" max="80" value="18"></label>
+          <p class="property-empty">Gôm sẽ xóa nét bút tự do hoặc hình đang chạm.</p>
+        </div>
+      </div>
+
+      <div class="inspector-footer">
+        <span class="mini-mark">V</span>
+        <span>Mini Vector CAD<small>Giao diện web · Bản xem trước</small></span>
+      </div>
+    </aside>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -7,19 +7,32 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(include)
 
 file(GLOB SOURCES
-    "src/core/*.cpp"
     "src/shapes/*.cpp"
+    "src/shapes/core/*.cpp"
     "src/canvas/*.cpp"
     "src/commands/*.cpp"
     "src/io/*.cpp"
     "src/controller/*.cpp"
-    "src/main.cpp"
 )
 
-add_executable(MiniVectorCAD ${SOURCES})
+add_library(MiniVectorCADCore ${SOURCES})
+target_include_directories(MiniVectorCADCore PUBLIC include)
 
 if (MSVC)
-    target_compile_options(MiniVectorCAD PRIVATE /W4)
+    target_compile_options(MiniVectorCADCore PRIVATE /W4)
 else()
-    target_compile_options(MiniVectorCAD PRIVATE -Wall -Wextra -pedantic)
+    target_compile_options(MiniVectorCADCore PRIVATE -Wall -Wextra -pedantic)
 endif()
+
+add_executable(MiniVectorCAD src/main.cpp)
+target_link_libraries(MiniVectorCAD PRIVATE MiniVectorCADCore)
+
+include(CTest)
+if (BUILD_TESTING)
+    foreach(test_name IN ITEMS test_shapes test_task9 test_undo_redo)
+        add_executable(${test_name} tests/${test_name}.cpp)
+        target_link_libraries(${test_name} PRIVATE MiniVectorCADCore)
+        add_test(NAME ${test_name} COMMAND ${test_name})
+    endforeach()
+endif()
+

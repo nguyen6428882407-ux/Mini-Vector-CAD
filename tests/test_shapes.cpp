@@ -21,6 +21,7 @@
 #include "shapes/TamGiac.h"
 #include "shapes/DaGiac.h"
 #include "shapes/GroupShape.h"
+#include "shapes/NetVeTuDo.h"
 
 void testDoanThang() {
     std::cout << "[TEST] Kiem tra DoanThang..." << std::endl;
@@ -52,6 +53,33 @@ void testDoanThang() {
     assert(MathUtils::bangNhau(dt.tinhChuVi(), 8.0));
 
     std::cout << "  => DoanThang PASSED!" << std::endl;
+}
+
+void testNetVeTuDo() {
+    const std::vector<Diem2D> points{Diem2D(0.0, 0.0), Diem2D(3.0, 4.0), Diem2D(6.0, 4.0)};
+    NetVeTuDo brush(points);
+    assert(brush.getDiem().size() == 3);
+    assert(brush.tam() == Diem2D(3.0, 2.0));
+    assert(MathUtils::bangNhau(brush.tinhChuVi(), 8.0));
+    assert(MathUtils::bangNhau(brush.tinhDienTich(), 0.0));
+
+    brush.setMauVien(MauSac(20, 40, 60, 128));
+    brush.setDoDayNet(7.0);
+    brush.transform(BienDoi2D::tinhTien(2.0, -1.0));
+    assert(brush.getDiem()[0] == Diem2D(2.0, -1.0));
+    assert(brush.getDiem()[2] == Diem2D(8.0, 3.0));
+    assert(brush.getMauVien().getA() == 128);
+    const std::string svg = brush.toSVG();
+    assert(svg.find("stroke-opacity=\"0.501961\"") != std::string::npos);
+    assert(svg.find("stroke-width=\"7\"") != std::string::npos);
+    NetVeTuDo dot({Diem2D(5.0, 7.0)});
+    dot.setDoDayNet(4.0);
+    assert(dot.toSVG().find("<circle cx=\"5\" cy=\"7\" r=\"2\"") != std::string::npos);
+
+    auto clone = brush.clone();
+    assert(clone->getId() != brush.getId());
+    assert(dynamic_cast<NetVeTuDo*>(clone.get())->getDiem() == brush.getDiem());
+    std::cout << "  => NetVeTuDo PASSED!" << std::endl;
 }
 
 void testHinhTron() {
@@ -790,6 +818,7 @@ int main() {
         assert(group.tam() == Diem2D(6.0, 6.0));
 
         testDoanThang();
+        testNetVeTuDo();
         testHinhTron();
         testHinhChuNhat();
         testTamGiac();

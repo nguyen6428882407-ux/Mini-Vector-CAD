@@ -1,104 +1,150 @@
-# BÀI TẬP LỚN LẬP TRÌNH HƯỚNG ĐỐI TƯỢNG (OOP - C++)
-# ĐỀ TÀI 17: PHẦN MỀM MINI VECTOR CAD
+# Mini Vector CAD
 
-## 1. Giới thiệu tổng quan
-**Mini-Vector-CAD** là một chương trình thiết kế và quản lý đồ họa vector 2D trên nền tảng giao diện dòng lệnh (CLI Console) viết bằng C++ hiện đại (C++17). Chương trình cho phép người dùng vẽ, quản lý các đối tượng hình học theo từng Layer (lớp vẽ), áp dụng các phép biến đổi Affine 2D (tịnh tiến, xoay, scale đồng dạng), hỗ trợ lịch sử hoàn tác/làm lại (Undo/Redo) và xuất dữ liệu ra file chuẩn vector SVG (`.svg`) cùng định dạng văn bản (`.txt`).
+Mini Vector CAD là ứng dụng vẽ vector 2D viết bằng **C++17**, gồm chương trình CLI, giao diện web tĩnh và một C++ HTTP backend cục bộ để giao diện web đồng bộ bản vẽ.
 
----
+## Tính năng
 
-## 2. Danh sách thành viên và Phân công nhiệm vụ
+### Ứng dụng C++
 
-| STT | Thành viên | Nhiệm vụ chính | Các file phụ trách |
-| :---: | :--- | :--- | :--- |
-| 1 | **Đức Huy** *(Nhóm trưởng)* | Interface cốt lõi, Composite Shape, Command Manager, CMake, Test nhóm | `HinhHoc2D`, `Command.h`, `GroupShape`, `CommandManager`, `GroupCommand`, `test_group.cpp`, `CMakeLists.txt` |
-| 2 | **Nhất Vũ** | Phép biến đổi Affine 2D, Layer & Canvas, Các lệnh thao tác hình, Test Undo/Redo | `BienDoi2D`, `Layer`, `BangVeCanvas`, `AddShapeCommand`, `RemoveShapeCommand`, `TransformCommand`, `test_undo_redo.cpp` |
-| 3 | **Giang Tưởng** | Điểm, Màu sắc, Tiện ích toán, Đoạn thẳng, Hình tròn, Test hình cơ bản | `Diem2D`, `MauSac`, `MathUtils`, `DoanThang`, `HinhTron`, `test_shapes.cpp` |
-| 4 | **Hồ Hưng** | Hình chữ nhật, Tam giác, Đa giác, Shoelace formula, Test hình đa giác | `HinhChuNhat`, `TamGiac`, `DaGiac`, `test_shapes.cpp` |
-| 5 | **Trường Vũ** | Bộ xuất SVG, Lưu/Tải trạng thái Text, Shape Factory, Menu Console, Validation, README & Demo | `SvgExporter`, `TextSerializer`, `ShapeFactory`, `MenuController`, `main.cpp`, `README.md`, `sample_draw.svg/txt` |
+- Quản lý bản vẽ theo layer; ẩn/hiện và khóa layer.
+- Các hình: đường thẳng, hình tròn, hình chữ nhật, tam giác, đa giác, nét bút tự do và nhóm hình.
+- Biến đổi hình bằng phép tịnh tiến, xoay và scale.
+- Hoàn tác/làm lại các thao tác được hỗ trợ.
+- Lưu và nạp trạng thái bản vẽ dạng `.txt`; xuất SVG.
+- Shape Factory kiểm tra dữ liệu hình đầu vào.
 
----
+### Giao diện web
 
-## 3. Kiến trúc phần mềm & Các Mẫu thiết kế (Design Patterns)
+- Vẽ hình bằng chuột trái; chọn, di chuyển, đổi kích thước và xoay hình.
+- Vẽ nét tự do với màu, độ dày và độ đậm tùy chỉnh; dùng gôm để xóa nét hoặc hình.
+- Tạo, chọn, ẩn/hiện và xóa layer; không thể xóa layer cuối cùng.
+- Hoàn tác/làm lại, sao chép, nhân bản và xóa hình; đổi giao diện sáng/tối.
+- Tự kết nối và đồng bộ bản vẽ với C++ backend chạy trên cùng máy.
+- Xuất bản vẽ web ra SVG.
 
-Chương trình áp dụng kiến trúc phân tầng nghiêm ngặt: **Tầng trên chỉ include tầng dưới**, bao gồm 5 tầng:
-1. **Tầng Presentation & Controller (`controller/`)**: `MenuController`, `main.cpp` - Tương tác người dùng, điều phối hoạt động, kiểm tra tính hợp lệ dữ liệu.
-2. **Tầng I/O & Serialization (`io/`)**: `SvgExporter`, `TextSerializer` - Xuất SVG theo chuẩn W3C (chỉ xuất các layer đang hiển thị) và lưu/khôi phục trạng thái bảng vẽ.
-3. **Tầng Commands (`commands/`)**: `Command`, `CommandManager`, các lớp lệnh cụ thể - Quản lý lịch sử Undo/Redo.
-4. **Tầng Canvas & Shapes (`canvas/`, `shapes/`)**: `BangVeCanvas`, `Layer`, `HinhHoc2D`, `GroupShape`, `ShapeFactory` - Quản lý mô hình dữ liệu hình học vector.
-5. **Tầng Core Foundation (`core/`)**: `Diem2D`, `MauSac`, `MathUtils`, `BienDoi2D` - Xử lý tính toán đại số tuyến tính và hình học giải tích 2D.
+## Công nghệ
 
-### Các Design Patterns cốt lõi:
-- **Composite Pattern**: `HinhHoc2D` đóng vai trò Component trừu tượng; các hình đơn lẻ (`DoanThang`, `HinhTron`, `HinhChuNhat`, `TamGiac`, `DaGiac`) là Leaf; `GroupShape` là Composite chứa danh sách các hình con, cho phép gom nhóm lồng nhau tùy ý.
-- **Prototype Pattern**: Phương thức ảo `clone()` cho phép tạo bản sao sâu (deep copy) của một hình bất kỳ kèm theo việc cấp phát một **ID duy nhất mới**.
-- **Command Pattern**: Các thao tác thay đổi trạng thái hình vẽ (`AddShape`, `RemoveShape`, `Transform`, `Group`) đều được đóng gói thành các đối tượng `Command` với hai hành vi `execute()` và `undo()`, kết hợp với `CommandManager` (hai stack Undo/Redo).
-- **Factory Pattern (Simple Factory / Factory Method)**: `ShapeFactory` phân tích chuỗi văn bản để khởi tạo đối tượng `HinhHoc2D` cụ thể, giúp tách biệt logic nhập liệu khỏi các lớp hình.
+- C++17
+- CMake 3.15+
+- HTML, CSS và JavaScript thuần
+- HTTP API cục bộ dùng để kết nối giao diện web với C++ backend
 
----
+## Biên dịch
 
-## 4. Hướng dẫn Biên dịch và Chạy ứng dụng
+Cần có trình biên dịch hỗ trợ C++17 và CMake 3.15 trở lên. Ví dụ với MinGW trên Windows:
 
-### Yêu cầu môi trường:
-- Trình biên dịch C++ hỗ trợ chuẩn **C++17** trở lên (GCC 9+, Clang 10+, hoặc MSVC 2019+).
-- **CMake** phiên bản 3.15 trở lên.
-
-### Các bước biên dịch:
-```bash
-# 1. Tạo thư mục build và di chuyển vào
-mkdir build
-cd build
-
-# 2. Sinh Makefile / Project
-cmake ..
-
-# 3. Biên dịch chương trình
-cmake --build .
-
-# 4. Chạy ứng dụng
-./MiniVectorCAD          # Trên Linux/macOS
-.\Debug\MiniVectorCAD.exe # Trên Windows (MSVC)
+```powershell
+cmake -S . -B build -G "MinGW Makefiles"
+cmake --build build --parallel
 ```
 
----
+Nếu MinGW chưa nằm trong `PATH`, chỉ định đường dẫn tới trình biên dịch:
 
-## 5. Cú pháp nhập hình trong Menu (`ShapeFactory`)
+```powershell
+cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_CXX_COMPILER=D:/mingw64/bin/g++.exe
+cmake --build build --parallel
+```
 
-Khi chọn chức năng **2. Thêm hình mới**, bạn có thể nhập các câu lệnh theo cú pháp sau:
+Trên Linux/macOS hoặc với Visual Studio, có thể dùng generator mặc định:
 
-| Loại hình | Cú pháp lệnh | Ví dụ |
-| :--- | :--- | :--- |
-| **Hình tròn** | `tron <cx> <cy> <r>` | `tron 680 120 50` |
-| **Đoạn thẳng** | `doanthang <x1> <y1> <x2> <y2>` | `doanthang 120 480 120 380` |
-| **Hình chữ nhật** | `chunhat <x> <y> <w> <h>` | `chunhat 200 320 220 160` |
-| **Tam giác** | `tamgiac <x1> <y1> <x2> <y2> <x3> <y3>` | `tamgiac 180 320 310 190 440 320` |
-| **Đa giác** | `dagiac <x1> <y1> <x2> <y2> <x3> <y3> ...` | `dagiac 50 100 80 120 70 150` |
+```sh
+cmake -S . -B build
+cmake --build build --parallel
+```
 
-### Tùy chọn định dạng màu sắc (Style) ở đuôi lệnh:
-- `vien <r> <g> <b> [a]`: Màu viền RGB (Alpha tùy chọn từ 0-255).
-- `nen <r> <g> <b> [a]`: Màu nền fill RGB.
-- `net <w>`: Độ dày nét viền.
-*Ví dụ:* `tron 100 100 40 vien 255 0 0 nen 255 255 0 net 2`
+## Chạy ứng dụng CLI
 
----
+Sau khi build, chạy từ thư mục gốc dự án:
 
-## 6. Các quy tắc Kiểm tra tính hợp lệ (Validation) trong MenuController
+```powershell
+.\build\MiniVectorCAD.exe
+```
 
-1. **Kiểm tra ID tồn tại**: Trước khi Xóa, Biến đổi hay Gom nhóm, chương trình kiểm tra xem ID hình có tồn tại trong Canvas/Layer hay không. Nếu không, in thông báo lỗi và không tạo lệnh rỗng.
-2. **Kiểm tra cờ Khóa Layer (`isKhoa`)**: Layer bị khóa (`KHOA`) sẽ chặn hoàn toàn các thao tác thêm, xóa, biến đổi hình vẽ bên trong.
-3. **Kiểm tra Hệ số Scale $k = 0$**: Khi thu phóng hình học quanh tâm, hệ số $k$ bị cấm tuyệt đối bằng 0 ($|k| < 10^{-9}$) nhằm đảm bảo tính khả nghịch để phục vụ cơ chế Hoàn tác (Undo).
+Trên Linux/macOS:
 
----
+```sh
+./build/MiniVectorCAD
+```
 
-## 7. Các tệp mẫu Demo trong thư mục `output/`
+CLI hiển thị menu tương tác. Chọn mục **2** để nhập hình; chọn mục **9** để xuất SVG và mục **10/11** để lưu/nạp file trạng thái.
 
-- **`output/sample_draw.svg`**: Bức tranh vector hoàn chỉnh vẽ phong cảnh "Ngôi nhà bên hồ dưới ánh mặt trời", bao gồm 3 layer hiển thị (`Background`, `Architecture`, `Nature`), sử dụng đầy đủ các đối tượng đường thẳng, hình tròn, chữ nhật, tam giác, đa giác, nhóm `GroupShape`, màu sắc RGB/Alpha và viền nét. Có thể mở trực tiếp bằng trình duyệt Google Chrome, Edge hoặc Inkscape.
-- **`output/sample_draw.txt`**: Tệp văn bản lưu trữ trạng thái đầy đủ của bức tranh, có thể nạp lại tức thì vào chương trình qua tính năng **11. Nạp file trạng thái (.txt)**.
+### Cú pháp nét bút trong CLI
 
----
+```text
+brush <số_điểm> <x1> <y1> <x2> <y2> ...
+```
 
-## 8. Kịch bản chạy Demo báo cáo Bài tập lớn
+Ví dụ:
 
-1. **Khởi động**: Chạy chương trình, hiển thị menu với layer mặc định `[0] Layer 1`.
-2. **Nạp dữ liệu mẫu**: Chọn mục `11`, nhập `output/sample_draw.txt`.
+```text
+brush 3 10 20 40 30 70 25 vien 51 65 85 128 net 8
+```
+
+Các kiểu hình khác gồm `tron`, `doanthang`, `chunhat`, `tamgiac` và `dagiac`. Có thể thêm thuộc tính `vien <r> <g> <b> [a]`, `nen <r> <g> <b> [a]` và `net <độ_dày>` vào cuối câu lệnh.
+
+## Chạy giao diện web và C++ backend
+
+Chạy backend và web server trong **hai cửa sổ terminal riêng**, tại thư mục gốc dự án.
+
+**Terminal 1 — khởi động C++ backend:**
+
+```powershell
+.\build\MiniVectorCADServer.exe
+```
+
+**Terminal 2 — phục vụ giao diện web:**
+
+```powershell
+python -m http.server 8765 --bind 127.0.0.1
+```
+
+Mở <http://127.0.0.1:8765/web/> trong trình duyệt. Trang web tự kết nối backend tại `127.0.0.1:8766`; nếu backend chưa chạy khi mở trang, web sẽ tự thử kết nối lại.
+
+Backend chỉ lắng nghe trên loopback (`127.0.0.1`) và giới hạn nguồn kết nối web vào các địa chỉ localhost được cấu hình sẵn. Đây là backend phát triển cục bộ, **không dành cho triển khai công khai trên Internet**.
+
+> Backend hiện giữ bản vẽ trong bộ nhớ. Khi tắt hoặc khởi động lại backend, trạng thái đang đồng bộ sẽ trở về bản vẽ trống. CLI và backend web cũng là hai tiến trình riêng, không tự chia sẻ trạng thái trực tiếp với nhau.
+
+## Chạy kiểm thử
+
+```powershell
+ctest --test-dir build --output-on-failure
+```
+
+Các test hiện có bao gồm kiểm thử hình học, lưu/nạp dữ liệu và undo/redo.
+
+## Cấu trúc dự án
+
+```text
+.
+|-- include/       # Header C++: canvas, shapes, commands, I/O và backend
+|-- src/           # Mã nguồn C++ và điểm vào CLI/server
+|-- tests/         # Các chương trình kiểm thử
+|-- web/           # Giao diện HTML, CSS và JavaScript
+|-- output/        # Bản vẽ mẫu SVG và TXT
+|-- CMakeLists.txt
+`-- README.md
+```
+
+## Mẫu bản vẽ
+
+- `output/sample_draw.svg`: bản vẽ mẫu có thể mở bằng trình duyệt hoặc phần mềm hỗ trợ SVG.
+- `output/sample_draw.txt`: dữ liệu mẫu để nạp bằng chức năng nạp trạng thái trong CLI.
+
+## Ghi nhận đóng góp ban đầu
+
+| Thành viên | Phần việc chính |
+|---|---|
+| Đức Huy | Interface cốt lõi, Composite Shape, Command Manager và CMake |
+| Nhất Vũ | Phép biến đổi 2D, Layer/Canvas và các lệnh thao tác hình |
+| Giang Tưởng | Điểm, màu sắc, tiện ích toán học, đoạn thẳng và hình tròn |
+| Hồ Hưng | Hình chữ nhật, tam giác và đa giác |
+| Trường Vũ | SVG, serializer, Shape Factory, menu CLI và validation |
+
+## Trạng thái repository
+
+Không cần cài thư viện JavaScript bên ngoài để chạy giao diện web. Thư mục `build/` và các sản phẩm biên dịch đã được loại khỏi Git bằng `.gitignore`.
+
+
 3. **Xem trực quan bảng vẽ**: Chọn mục `8`, quan sát cấu trúc cây của các layer và các hình vẽ với ID tương ứng.
 4. **Thao tác Layer**: Chọn mục `1`, ẩn layer `Background`, quay lại menu chính và chọn `9` để xuất SVG ra file tạm; mở file để kiểm chứng layer bị ẩn không xuất hiện trong SVG.
 5. **Thao tác Thêm & Undo/Redo**: Chọn mục `2`, thêm một hình tròn `tron 400 300 60`. Chọn `6` để Undo, hình tròn biến mất; chọn `7` để Redo, hình tròn xuất hiện lại với đúng ID ban đầu.

@@ -4,6 +4,7 @@
 #include "shapes/HinhChuNhat.h"
 #include "shapes/TamGiac.h"
 #include "shapes/DaGiac.h"
+#include "shapes/NetVeTuDo.h"
 #include "core/MathUtils.h"
 #include <sstream>
 #include <algorithm>
@@ -151,6 +152,31 @@ std::unique_ptr<HinhHoc2D> ShapeFactory::taoHinh(const std::string& moTa) {
         }
         hinh = std::make_unique<TamGiac>(Diem2D(x1, y1), Diem2D(x2, y2), Diem2D(x3, y3));
     }
+    else if (loai == "brush" || loai == "netvetudo") {
+        std::string tokenCount;
+        if (!(iss >> tokenCount)) {
+            throw std::invalid_argument("Cu phap net ve sai: can <so_diem> va cac cap <x> <y>.");
+        }
+        int count = 0;
+        if (!parseIntegerToken(tokenCount, count) || count < 1 || count > 100000) {
+            throw std::invalid_argument("So diem net ve phai nam trong khoang tu 1 den 100000.");
+        }
+        std::vector<Diem2D> points;
+        points.reserve(static_cast<std::size_t>(count));
+        for (int i = 0; i < count; ++i) {
+            std::string tokenX, tokenY;
+            if (!(iss >> tokenX >> tokenY)) {
+                throw std::invalid_argument("Net ve thieu toa do diem.");
+            }
+            double x = 0.0;
+            double y = 0.0;
+            if (!parseDoubleToken(tokenX, x) || !parseDoubleToken(tokenY, y)) {
+                throw std::invalid_argument("Toa do net ve phai la so huu han hop le.");
+            }
+            points.emplace_back(x, y);
+        }
+        hinh = std::make_unique<NetVeTuDo>(points);
+    }
     else if (loai == "dagiac" || loai == "polygon") {
         std::vector<Diem2D> cacDinh;
         std::string token;
@@ -254,3 +280,4 @@ std::unique_ptr<HinhHoc2D> ShapeFactory::taoHinh(const std::string& moTa) {
 
     return hinh;
 }
+

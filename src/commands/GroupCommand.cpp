@@ -1,6 +1,7 @@
 #include "commands/GroupCommand.h"
 #include "canvas/BangVeCanvas.h"
 #include "shapes/GroupShape.h"
+#include <algorithm>
 #include <stdexcept>
 #include <string>
 
@@ -9,17 +10,36 @@ GroupCommand::GroupCommand(BangVeCanvas& canvas, std::size_t layerIdx, const std
       layerIdx_(layerIdx),
       loai_(loai),
       shapeIds_(shapeIds),
+      shapePositions_(),
       group_(nullptr),
       groupId_(-1),
+      groupPosition_(Layer::npos),
       daTaoNhomLanthoi_(false) {}
+
+GroupCommand::GroupCommand(BangVeCanvas& canvas, std::size_t layerIdx, Loai loai, const std::vector<int>& shapeIds)
+    : canvas_(canvas),
+      layerIdx_(layerIdx),
+      loai_(loai),
+      shapeIds_(loai == Loai::GOM ? shapeIds : std::vector<int>{}),
+      shapePositions_(),
+      group_(nullptr),
+      groupId_(loai == Loai::RA_NHOM && shapeIds.size() == 1 ? shapeIds.front() : -1),
+      groupPosition_(Layer::npos),
+      daTaoNhomLanthoi_(false) {
+    if (loai == Loai::RA_NHOM && shapeIds.size() != 1) {
+        throw std::invalid_argument("GroupCommand: Ra nhom can dung mot ID nhom.");
+    }
+}
 
 GroupCommand::GroupCommand(BangVeCanvas& canvas, std::size_t layerIdx, int groupId, Loai loai)
     : canvas_(canvas),
       layerIdx_(layerIdx),
       loai_(loai),
       shapeIds_(),
+      shapePositions_(),
       group_(nullptr),
       groupId_(groupId),
+      groupPosition_(Layer::npos),
       daTaoNhomLanthoi_(false) {}
 
 GroupCommand::Loai GroupCommand::getLoai() const {
@@ -39,21 +59,36 @@ void GroupCommand::execute() {
 
     if (loai_ == Loai::GOM) {
         if (!daTaoNhomLanthoi_) {
-            // 1. Kiem tra danh sach ID hop le
             if (shapeIds_.empty()) {
                 throw std::invalid_argument("GroupCommand::execute: Danh sach ID gom nhom bi rong!");
             }
-            for (int id : shapeIds_) {
-                if (!lay.timTheoId(id)) {
+            std::vector<std::pair<std::size_t, int>> selected;
+            selected.reserve(shapeIds_.size());
+            for (std::size_t i = 0; i < shapeIds_.size(); ++i) {
+                for (std::size_t j = i + 1; j < shapeIds_.size(); ++j) {
+                    if (shapeIds_[i] == shapeIds_[j]) {
+                        throw std::invalid_argument("GroupCommand::execute: ID bi trung lap trong danh sach gom nhom!");
+                    }
+                }
+                const std::size_t position = lay.viTriTheoId(shapeIds_[i]);
+                if (position == Layer::npos) {
+                    const int id = shapeIds_[i];
                     throw std::out_of_range("GroupCommand::execute: Hinh ID #" + std::to_string(id) + " khong ton tai!");
                 }
+                selected.emplace_back(position, shapeIds_[i]);
+            }
+            std::sort(selected.begin(), selected.end());
+            shapeIds_.clear();
+            shapePositions_.clear();
+            for (const auto& item : selected) {
+                shapePositions_.push_back(item.first);
+                shapeIds_.push_back(item.second);
             }
 
-            // 2. Tao GroupShape moi
             group_ = std::make_unique<GroupShape>();
             groupId_ = group_->getId();
+            groupPosition_ = shapePositions_.front();
 
-            // 3. Rut tung hinh con ra khoi Layer va dua vao GroupShape
             for (int id : shapeIds_) {
                 auto h = lay.layHinh(id);
                 if (!h) {
@@ -63,9 +98,8 @@ void GroupCommand::execute() {
             }
 
             daTaoNhomLanthoi_ = true;
-            lay.themHinh(std::move(group_));
+            lay.themHinh(std::move(group_), groupPosition_);
         } else {
-            // Redo Gom nhom: group_ duoc giu lai (dung groupId cu), rut cac hinh con tu Layer bo vao group_
             if (!group_) {
                 throw std::logic_error("GroupCommand::execute: group_ bi nullptr khi redo gom nhom!");
             }
@@ -76,11 +110,11 @@ void GroupCommand::execute() {
                 }
                 group_->themHinh(std::move(h));
             }
-            lay.themHinh(std::move(group_));
+            lay.themHinh(std::move(group_), groupPosition_);
         }
     } else { // Loai::RA_NHOM
         if (!daTaoNhomLanthoi_) {
-            // 1. Rut group can ra khoi Layer
+            groupPosition_ = lay.viTriTheoId(groupId_);
             auto nhomRutRa = lay.layHinh(groupId_);
             if (!nhomRutRa) {
                 throw std::out_of_range("GroupCommand::execute: Khong tim thay nhom ID #" + std::to_string(groupId_) + " de ra nhom!");
@@ -99,24 +133,29 @@ void GroupCommand::execute() {
                 if (con) shapeIds_.push_back(con->getId());
             }
 
-            // 3. Dua tung hinh con ra Layer
-            for (int id : shapeIds_) {
+            for (std::size_t i = 0; i < shapeIds_.size(); ++i) {
+                int id = shapeIds_[i];
                 auto con = group_->rutHinh(id);
-                if (con) lay.themHinh(std::move(con));
+                if (con) lay.themHinh(std::move(con), groupPosition_ + i);
             }
 
             daTaoNhomLanthoi_ = true;
         } else {
-            // Redo Ra nhom: rut group_ khoi Layer va dua cac hinh con ra
             auto nhomRutRa = lay.layHinh(groupId_);
             if (!nhomRutRa) {
                 throw std::out_of_range("GroupCommand::redo: Khong tim thay nhom ID #" + std::to_string(groupId_) + " de ra nhom!");
             }
+            auto* groupShape = dynamic_cast<GroupShape*>(nhomRutRa.get());
+            if (!groupShape) {
+                lay.themHinh(std::move(nhomRutRa), groupPosition_);
+                throw std::logic_error("GroupCommand::redo: Doi tuong khong phai GroupShape!");
+            }
             group_ = std::unique_ptr<GroupShape>(static_cast<GroupShape*>(nhomRutRa.release()));
 
-            for (int id : shapeIds_) {
+            for (std::size_t i = 0; i < shapeIds_.size(); ++i) {
+                int id = shapeIds_[i];
                 auto con = group_->rutHinh(id);
-                if (con) lay.themHinh(std::move(con));
+                if (con) lay.themHinh(std::move(con), groupPosition_ + i);
             }
         }
     }
@@ -138,25 +177,27 @@ void GroupCommand::undo() {
         }
         group_ = std::unique_ptr<GroupShape>(static_cast<GroupShape*>(nhomRutRa.release()));
 
-        for (int id : shapeIds_) {
+        for (std::size_t i = 0; i < shapeIds_.size(); ++i) {
+            int id = shapeIds_[i];
             auto con = group_->rutHinh(id);
             if (!con) {
                 throw std::out_of_range("GroupCommand::undo: Khong tim thay hinh con ID #" + std::to_string(id));
             }
-            lay.themHinh(std::move(con));
+            lay.themHinh(std::move(con), shapePositions_[i]);
         }
     } else { // Loai::RA_NHOM
         // Undo Ra nhom: gom lai cac hinh con tu Layer vao group_, dua group_ ve Layer
         if (!group_) {
             throw std::logic_error("GroupCommand::undo: group_ bi nullptr khi undo ra nhom!");
         }
-        for (int id : shapeIds_) {
+        for (std::size_t i = 0; i < shapeIds_.size(); ++i) {
+            int id = shapeIds_[i];
             auto con = lay.layHinh(id);
             if (!con) {
                 throw std::out_of_range("GroupCommand::undo: Khong tim thay hinh ID #" + std::to_string(id) + " de phuc hoi nhom!");
             }
             group_->themHinh(std::move(con));
         }
-        lay.themHinh(std::move(group_));
+        lay.themHinh(std::move(group_), groupPosition_);
     }
 }

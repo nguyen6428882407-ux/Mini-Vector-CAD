@@ -1,6 +1,3 @@
-// =============================================================================
-// test_task9.cpp - Kiem thu toan dien Task 9 (CommandManager & GroupCommand)
-// =============================================================================
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -11,12 +8,26 @@
 #include "commands/RemoveShapeCommand.h"
 #include "commands/TransformCommand.h"
 #include "commands/GroupCommand.h"
+#include "io/TextSerializer.h"
+#include <sstream>
 #include "shapes/HinhTron.h"
 #include "shapes/DoanThang.h"
 #include "shapes/GroupShape.h"
 #include "core/BienDoi2D.h"
 
 int main() {
+    {
+        BangVeCanvas source(800.0, 600.0);
+        source.themLayer("Imported Layer");
+        std::stringstream serialized;
+        TextSerializer::serialize(source, serialized);
+
+        BangVeCanvas destination;
+        destination.themLayer("Old Layer");
+        TextSerializer::deserialize(destination, serialized);
+        assert(destination.layer(0).getTen() == "Imported Layer");
+    }
+
     std::cout << "=== BAT DAU KIEM THU TOAN DIEN TASK 9 ===\n\n";
 
     // -------------------------------------------------------------------------
@@ -103,7 +114,7 @@ int main() {
 
         // Sau khi gom, Layer chi con 1 hinh la GroupShape
         assert(canvas.layer(0).soHinh() == 1);
-        auto* nhom = dynamic_cast<GroupShape*>(canvas.layer(0).hinhThu(0));
+        auto* nhom = dynamic_cast<GroupShape*>(&canvas.layer(0).hinhThu(0));
         assert(nhom != nullptr);
         int groupId = nhom->getId();
         assert(groupId != id1 && groupId != id2);
@@ -146,7 +157,7 @@ int main() {
 
         // Gom nhom truoc
         mgr.thucThi(std::make_unique<GroupCommand>(canvas, 0, std::vector<int>{id1, id2}));
-        int groupId = canvas.layer(0).hinhThu(0)->getId();
+        int groupId = canvas.layer(0).hinhThu(0).getId();
 
         // Ra nhom bang GroupCommand(canvas, 0, groupId, Loai::RA_NHOM)
         mgr.thucThi(std::make_unique<GroupCommand>(canvas, 0, groupId, GroupCommand::Loai::RA_NHOM));
@@ -194,7 +205,7 @@ int main() {
 
         // Group {h1, h2}
         mgr.thucThi(std::make_unique<GroupCommand>(canvas, 0, std::vector<int>{id1, id2}));
-        int groupId = canvas.layer(0).hinhThu(0)->getId();
+        int groupId = canvas.layer(0).hinhThu(0).getId();
 
         // Transform nhom (Tinh tien dx=20, dy=30)
         mgr.thucThi(std::make_unique<TransformCommand>(canvas, 0, groupId, BienDoi2D::tinhTien(20, 30)));
@@ -246,3 +257,4 @@ int main() {
     std::cout << "=== TAT CA 5/5 TEST TASK 9 DEU PASS XUAT SAC! ===\n";
     return 0;
 }
+

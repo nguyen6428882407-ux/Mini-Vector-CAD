@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 #include "core/Diem2D.h"
@@ -19,6 +20,7 @@
 #include "shapes/HinhChuNhat.h"
 #include "shapes/TamGiac.h"
 #include "shapes/DaGiac.h"
+#include "shapes/GroupShape.h"
 
 void testDoanThang() {
     std::cout << "[TEST] Kiem tra DoanThang..." << std::endl;
@@ -770,6 +772,23 @@ int main() {
     std::cout << "========================================" << std::endl;
 
     try {
+        HinhTron styleCheck(Diem2D(0.0, 0.0), 1.0);
+        assert(styleCheck.getMauVien().getA() == 255);
+        assert(styleCheck.getMauNen().getA() == 0);
+
+        bool invalidWidthRejected = false;
+        try {
+            styleCheck.setDoDayNet(0.0);
+        } catch (const std::invalid_argument&) {
+            invalidWidthRejected = true;
+        }
+        assert(invalidWidthRejected);
+
+        GroupShape group;
+        group.themHinh(std::make_unique<DoanThang>(Diem2D(0.0, 0.0), Diem2D(2.0, 2.0)));
+        group.themHinh(std::make_unique<HinhTron>(Diem2D(10.0, 10.0), 2.0));
+        assert(group.tam() == Diem2D(6.0, 6.0));
+
         testDoanThang();
         testHinhTron();
         testHinhChuNhat();

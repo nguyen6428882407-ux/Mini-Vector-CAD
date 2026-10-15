@@ -13,9 +13,31 @@
 #include "shapes/HinhTron.h"
 #include "shapes/DoanThang.h"
 #include "shapes/GroupShape.h"
+#include "shapes/NetVeTuDo.h"
+#include "shapes/ShapeFactory.h"
 #include "core/BienDoi2D.h"
 
 int main() {
+    {
+        BangVeCanvas source;
+        source.themLayer("Brush Layer");
+        auto brush = ShapeFactory::taoHinh("brush 3 1 2 3 4 8 5 vien 30 60 90 128 nen 255 255 255 0 net 6");
+        source.layer(0).themHinh(std::move(brush));
+
+        std::stringstream serialized;
+        TextSerializer::serialize(source, serialized);
+        assert(serialized.str().find("brush 3 1 2 3 4 8 5") != std::string::npos);
+
+        BangVeCanvas destination;
+        TextSerializer::deserialize(destination, serialized);
+        assert(destination.soLayer() == 1);
+        auto* importedBrush = dynamic_cast<const NetVeTuDo*>(&destination.layer(0).hinhThu(0));
+        assert(importedBrush != nullptr);
+        assert(importedBrush->getDiem().size() == 3);
+        assert(importedBrush->getMauVien().getA() == 128);
+        assert(importedBrush->getDoDayNet() == 6.0);
+    }
+
     {
         BangVeCanvas source(800.0, 600.0);
         source.themLayer("Imported Layer");

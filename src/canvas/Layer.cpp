@@ -42,7 +42,9 @@ const HinhHoc2D& Layer::hinhThu(std::size_t i) const { return *hinh_.at(i); }
 std::size_t Layer::soHinh() const { return hinh_.size(); }
 
 const std::string& Layer::getTen() const { return ten_; }
+void Layer::setTen(const std::string& ten) { ten_ = ten; }
 bool Layer::isHien() const { return hien_; }
 void Layer::setHien(bool b) { hien_ = b; }
 bool Layer::isKhoa() const { return khoa_; }
 void Layer::setKhoa(bool b) { khoa_ = b; }
+

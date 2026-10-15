@@ -1,15 +1,6 @@
 #include <iostream>
 #include <cassert>
 #include <vector>
-#include "core/Diem2D.h"
-#include "core/MathUtils.h"
-#include "core/MauSac.h"
-#include "shapes/DoanThang.h"
-#include "shapes/HinhTron.h"
-#include "shapes/HinhChuNhat.h"
-#include "shapes/TamGiac.h"
-#include "shapes/DaGiac.h"
-#include "core/BienDoi2D.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -18,8 +9,19 @@
 #include <sstream>
 #include <string>
 
+#include "core/Diem2D.h"
+#include "core/MathUtils.h"
+#include "core/MauSac.h"
+#include "core/BienDoi2D.h"
+#include "shapes/HinhHoc2D.h"
+#include "shapes/DoanThang.h"
+#include "shapes/HinhTron.h"
+#include "shapes/HinhChuNhat.h"
+#include "shapes/TamGiac.h"
+#include "shapes/DaGiac.h"
+
 void testDoanThang() {
-    std::cout << "[TEST] Kiems tra DoanThang..." << std::endl;
+    std::cout << "[TEST] Kiem tra DoanThang..." << std::endl;
     
     Diem2D p1(0.0, 0.0);
     Diem2D p2(4.0, 0.0);
@@ -32,19 +34,19 @@ void testDoanThang() {
     assert(MathUtils::bangNhau(dt.tinhDienTich(), 0.0));
 
     // 3. Tam (Trung diem) = (2, 0)
-    assert(dt.tinhTam() == Diem2D(2.0, 0.0));
+    assert(dt.tam() == Diem2D(2.0, 0.0));
 
     // 4. Tinh tien (+2, +3) -> tam moi (4, 3)
-    dt.tinhTien(2.0, 3.0);
-    assert(dt.tinhTam() == Diem2D(4.0, 3.0));
+    dt.transform(BienDoi2D::tinhTien(2.0, 3.0));
+    assert(dt.tam() == Diem2D(4.0, 3.0));
 
     // 5. Scale x2 (do dai thanh 8)
-    dt.scale(2.0);
+    dt.transform(BienDoi2D::tiLeDeu(2.0, dt.tam()));
     assert(MathUtils::bangNhau(dt.tinhChuVi(), 8.0));
 
-    // 6. Xoay 90 do quanh tam (Tam giu nguyen)
-    dt.xoay(MathUtils::tuDoSangRadian(90.0));
-    assert(dt.tinhTam() == Diem2D(4.0, 3.0));
+    // 6. Xoay 90 do quanh tam (Tam giu nguyen) - Goc tính bang Do
+    dt.transform(BienDoi2D::xoay(90.0, dt.tam()));
+    assert(dt.tam() == Diem2D(4.0, 3.0));
     assert(MathUtils::bangNhau(dt.tinhChuVi(), 8.0));
 
     std::cout << "  => DoanThang PASSED!" << std::endl;
@@ -64,26 +66,26 @@ void testHinhTron() {
     assert(MathUtils::bangNhau(ht.tinhDienTich(), MathUtils::PI * 25.0));
 
     // 3. Tam = (1, 1)
-    assert(ht.tinhTam() == Diem2D(1.0, 1.0));
+    assert(ht.tam() == Diem2D(1.0, 1.0));
 
     // 4. Tinh tien (+3, -1) -> tam moi (4, 0)
-    ht.tinhTien(3.0, -1.0);
-    assert(ht.tinhTam() == Diem2D(4.0, 0.0));
+    ht.transform(BienDoi2D::tinhTien(3.0, -1.0));
+    assert(ht.tam() == Diem2D(4.0, 0.0));
 
     // 5. Scale x0.5 -> R moi = 2.5
-    ht.scale(0.5);
+    ht.transform(BienDoi2D::tiLeDeu(0.5, ht.tam()));
     assert(MathUtils::bangNhau(ht.getBanKinh(), 2.5));
 
     // 6. Xoay quanh tam (Tam va R giu nguyen)
-    ht.xoay(MathUtils::tuDoSangRadian(45.0));
-    assert(ht.tinhTam() == Diem2D(4.0, 0.0));
+    ht.transform(BienDoi2D::xoay(45.0, ht.tam()));
+    assert(ht.tam() == Diem2D(4.0, 0.0));
 
     std::cout << "  => HinhTron PASSED!" << std::endl;
 }
 
 // ============================================================================
 // KIEM THU HinhChuNhat, TamGiac, DaGiac
-// (Cac ham tro giup nam trong namespace an danh, khong trung voi ham cua DoanThang/HinhTron)
+// (Cac ham tro giup nam trong namespace an danh)
 // ============================================================================
 namespace {
 
@@ -109,8 +111,7 @@ std::size_t demKyTu(const std::string& s, char c) {
 void testHinhChuNhat() {
     std::cout << "[TEST] Kiem tra HinhChuNhat..." << std::endl;
 
-    // 1. Ham tao (goc tren-trai, rong, cao): 4 dinh theo thu tu
-    //    tren-trai, tren-phai, duoi-phai, duoi-trai
+    // 1. Ham tao (goc tren-trai, rong, cao): 4 dinh theo thu tu tren-trai, tren-phai, duoi-phai, duoi-trai
     HinhChuNhat hcn(Diem2D(1.0, 2.0), 4.0, 3.0);
     assert(hcn.getDinh().size() == 4);
     assert(hcn.getDinh()[0] == Diem2D(1.0, 2.0));
@@ -130,12 +131,11 @@ void testHinhChuNhat() {
     }
     assert(MathUtils::bangNhau(hcn2.tinhDienTich(), 12.0));
 
-    // 4. Ham tao 4 dinh: hinh chu nhat nghieng (canh 5 va 10, dinh theo thu tu noi)
-    //    d1=(0,0) d2=(3,4) d3=(-5,10) d4=(-8,6)  ->  |d1d2| = 5, |d2d3| = 10
+    // 4. Ham tao 4 dinh: hinh chu nhat nghieng
     HinhChuNhat nghieng(Diem2D(0.0, 0.0), Diem2D(3.0, 4.0), Diem2D(-5.0, 10.0), Diem2D(-8.0, 6.0));
     assert(MathUtils::bangNhau(nghieng.tinhDienTich(), 50.0));
     assert(MathUtils::bangNhau(nghieng.tinhChuVi(), 30.0));
-    assert(nghieng.tam() == Diem2D(-2.5, 5.0));   // trung diem duong cheo d1-d3
+    assert(nghieng.tam() == Diem2D(-2.5, 5.0));
 
     // 5. transform: tinh tien (+2, -1) -> dinh doi, dien tich/chu vi giu nguyen
     hcn.transform(BienDoi2D::tinhTien(2.0, -1.0));
@@ -147,8 +147,7 @@ void testHinhChuNhat() {
     assert(MathUtils::bangNhau(hcn.tinhChuVi(), 14.0));
     assert(MathUtils::bangNhau(hcn.tinhDienTich(), 12.0));
 
-    // 6. transform: xoay 90 do quanh tam cua chinh no (hinh 4 x 2, tam (2, 1))
-    //    -> thanh hinh 2 x 4, tam khong doi, van la hinh chu nhat (dien tich 8, chu vi 12)
+    // 6. transform: xoay 90 do quanh tam cua chinh no
     HinhChuNhat xoay90(Diem2D(0.0, 0.0), 4.0, 2.0);
     xoay90.transform(BienDoi2D::xoay(90.0, xoay90.tam()));
     assert(xoay90.getDinh()[0] == Diem2D(3.0, -1.0));
@@ -159,20 +158,20 @@ void testHinhChuNhat() {
     assert(MathUtils::bangNhau(xoay90.tinhDienTich(), 8.0));
     assert(MathUtils::bangNhau(xoay90.tinhChuVi(), 12.0));
 
-    // 7. transform: xoay goc bat ky (30 do) khong lam doi dien tich, chu vi
+    // 7. transform: xoay goc bat ky (30 do)
     HinhChuNhat xoay30(Diem2D(0.0, 0.0), 4.0, 2.0);
     xoay30.transform(BienDoi2D::xoay(30.0, Diem2D(10.0, -5.0)));
     assert(MathUtils::bangNhau(xoay30.tinhDienTich(), 8.0));
     assert(MathUtils::bangNhau(xoay30.tinhChuVi(), 12.0));
 
-    // 8. transform: scale deu x2 quanh goc toa do -> dien tich x4, chu vi x2
+    // 8. transform: scale deu x2 quanh goc toa do
     HinhChuNhat scale2(Diem2D(0.0, 0.0), 4.0, 2.0);
     scale2.transform(BienDoi2D::tiLeDeu(2.0, Diem2D(0.0, 0.0)));
     assert(scale2.getDinh()[2] == Diem2D(8.0, 4.0));
     assert(MathUtils::bangNhau(scale2.tinhDienTich(), 32.0));
     assert(MathUtils::bangNhau(scale2.tinhChuVi(), 24.0));
 
-    // 9. transform: thu nho x0.5 quanh tam cua chinh no -> tam khong doi
+    // 9. transform: thu nho x0.5 quanh tam cua chinh no
     scale2.transform(BienDoi2D::tiLeDeu(0.5, scale2.tam()));
     assert(scale2.getDinh()[0] == Diem2D(2.0, 1.0));
     assert(scale2.getDinh()[1] == Diem2D(6.0, 1.0));
@@ -181,7 +180,7 @@ void testHinhChuNhat() {
     assert(scale2.tam() == Diem2D(4.0, 2.0));
     assert(MathUtils::bangNhau(scale2.tinhDienTich(), 8.0));
 
-    // 10. transform: he so ti le AM (doi xung tam) van cho hinh chu nhat hop le
+    // 10. transform: he so ti le AM (doi xung tam)
     HinhChuNhat doiXung(Diem2D(0.0, 0.0), 4.0, 2.0);
     doiXung.transform(BienDoi2D::tiLeDeu(-1.0, doiXung.tam()));
     assert(doiXung.getDinh()[0] == Diem2D(4.0, 2.0));
@@ -192,8 +191,7 @@ void testHinhChuNhat() {
     assert(MathUtils::bangNhau(doiXung.tinhDienTich(), 8.0));
     assert(MathUtils::bangNhau(doiXung.tinhChuVi(), 12.0));
 
-    // 11. transform: ghep phep bien doi (phep ben PHAI ap dung truoc)
-    //     xoay 90 do quanh goc toa do, SAU DO tinh tien (+10, 0)
+    // 11. transform: ghep phep bien doi
     HinhChuNhat ghep(Diem2D(0.0, 0.0), 4.0, 2.0);
     ghep.transform(BienDoi2D::tinhTien(10.0, 0.0) * BienDoi2D::xoay(90.0, Diem2D(0.0, 0.0)));
     assert(ghep.getDinh()[0] == Diem2D(10.0, 0.0));
@@ -202,7 +200,7 @@ void testHinhChuNhat() {
     assert(ghep.getDinh()[3] == Diem2D(8.0, 0.0));
     assert(MathUtils::bangNhau(ghep.tinhDienTich(), 8.0));
 
-    // 12. transform + nghichDao (phuc vu Undo): ap dung roi hoan tac -> ve dung dinh ban dau
+    // 12. transform + nghichDao (phuc vu Undo)
     HinhChuNhat undo(Diem2D(1.0, 1.0), 6.0, 3.0);
     BienDoi2D bd = BienDoi2D::xoay(45.0, Diem2D(2.0, 2.0)) * BienDoi2D::tiLeDeu(1.5, Diem2D(0.0, 0.0));
     undo.transform(bd);
@@ -223,19 +221,19 @@ void testHinhChuNhat() {
     assert(MathUtils::bangNhau(diem.tinhChuVi(), 0.0));
     assert(diem.tam() == Diem2D(3.0, 3.0));
 
-    // 15. Ca bien: chieu rong am -> hinh nam ve ben trai goc, dien tich/chu vi van duong
+    // 15. Ca bien: chieu rong am
     HinhChuNhat rongAm(Diem2D(0.0, 0.0), -4.0, 3.0);
     assert(rongAm.getDinh()[1] == Diem2D(-4.0, 0.0));
     assert(rongAm.tam() == Diem2D(-2.0, 1.5));
     assert(MathUtils::bangNhau(rongAm.tinhDienTich(), 12.0));
     assert(MathUtils::bangNhau(rongAm.tinhChuVi(), 14.0));
 
-    // 16. Ca bien: toa do rat lon van tinh dung dien tich (sai so cho phep 1e-6)
+    // 16. Ca bien: toa do rat lon
     HinhChuNhat lon(Diem2D(1e6, 1e6), 4.0, 3.0);
     assert(MathUtils::bangNhau(lon.tinhDienTich(), 12.0, 1e-6));
     assert(MathUtils::bangNhau(lon.tinhChuVi(), 14.0, 1e-6));
 
-    // 17. ve(): dung MOT dong, bat dau "HinhChuNhat #<id>", ket thuc '\n'
+    // 17. ve()
     HinhChuNhat hinhVe(Diem2D(0.0, 0.0), 4.0, 2.0);
     const std::string dongVe = veRaChuoi(hinhVe);
     assert(dongVe == "HinhChuNhat #" + std::to_string(hinhVe.getId()) +
@@ -243,7 +241,7 @@ void testHinhChuNhat() {
     assert(demKyTu(dongVe, '\n') == 1);
     assert(dongVe.back() == '\n');
 
-    // 18. toSVG(): the <polygon> day du thuoc tinh style, khong xuong dong cuoi
+    // 18. toSVG()
     HinhChuNhat hinhSvg(Diem2D(0.0, 0.0), 4.0, 2.0);
     hinhSvg.setMauVien(MauSac(255, 0, 0, 255));
     hinhSvg.setMauNen(MauSac(0, 0, 255, 0));
@@ -254,11 +252,11 @@ void testHinhChuNhat() {
     assert(chuaChuoi(svg, "<polygon"));
     assert(svg.back() != '\n');
 
-    // 19. toSVG(): sau khi tinh tien, toa do trong the SVG cung doi theo
+    // 19. toSVG() sau khi tinh tien
     hinhSvg.transform(BienDoi2D::tinhTien(1.0, 1.0));
     assert(chuaChuoi(hinhSvg.toSVG(), "points=\"1,1 5,1 5,3 1,3\""));
 
-    // 20. clone(): ban sao SAU, id MOI, cung hinh dang, cung style
+    // 20. clone()
     HinhChuNhat goc(Diem2D(0.0, 0.0), 4.0, 2.0);
     goc.setMauVien(MauSac(255, 0, 0, 255));
     goc.setMauNen(MauSac(0, 0, 255, 0));
@@ -271,9 +269,9 @@ void testHinhChuNhat() {
     assert(MathUtils::bangNhau(banSao->tinhDienTich(), goc.tinhDienTich()));
     assert(MathUtils::bangNhau(banSao->tinhChuVi(), goc.tinhChuVi()));
     assert(banSao->tam() == goc.tam());
-    assert(banSao->toSVG() == goc.toSVG());   // cung toa do VA cung mau/do day net
+    assert(banSao->toSVG() == goc.toSVG());
 
-    // 21. clone(): doc lap voi ban goc (sua ban goc khong anh huong ban sao va nguoc lai)
+    // 21. clone() doc lap
     goc.transform(BienDoi2D::tinhTien(100.0, 100.0));
     assert(banSaoHcn->getDinh()[0] == Diem2D(0.0, 0.0));
     assert(goc.getDinh()[0] == Diem2D(100.0, 100.0));
@@ -281,7 +279,7 @@ void testHinhChuNhat() {
     banSao->transform(BienDoi2D::tinhTien(-1.0, -1.0));
     assert(goc.getDinh()[0] == Diem2D(100.0, 100.0));
 
-    // 22. clone() cua ban sao: lai co id moi, khac ca hai hinh truoc
+    // 22. clone() cua ban sao
     std::unique_ptr<HinhHoc2D> banSao2 = banSao->clone();
     assert(banSao2->getId() != banSao->getId());
     assert(banSao2->getId() != goc.getId());
@@ -292,7 +290,7 @@ void testHinhChuNhat() {
 void testTamGiac() {
     std::cout << "[TEST] Kiem tra TamGiac..." << std::endl;
 
-    // 1. Tam giac vuong 3-4-5: chu vi 12, dien tich 6
+    // 1. Tam giac vuong 3-4-5
     TamGiac tg(Diem2D(0.0, 0.0), Diem2D(4.0, 0.0), Diem2D(0.0, 3.0));
     assert(tg.getDinh().size() == 3);
     assert(tg.getDinh()[0] == Diem2D(0.0, 0.0));
@@ -301,41 +299,41 @@ void testTamGiac() {
     assert(MathUtils::bangNhau(tg.tinhChuVi(), 12.0));
     assert(MathUtils::bangNhau(tg.tinhDienTich(), 6.0));
 
-    // 2. tam() la tam HOP BAO (2, 1.5), KHONG phai trong tam (4/3, 1)
+    // 2. tam() la tam HOP BAO (2, 1.5)
     assert(tg.tam() == Diem2D(2.0, 1.5));
     assert(!(tg.tam() == Diem2D(4.0 / 3.0, 1.0)));
 
-    // 3. Ham tao 6 so thuc cho ket qua giong ham tao 3 diem
+    // 3. Ham tao 6 so thuc
     TamGiac tg2(0.0, 0.0, 4.0, 0.0, 0.0, 3.0);
     for (std::size_t i = 0; i < 3; ++i) {
         assert(tg2.getDinh()[i] == tg.getDinh()[i]);
     }
     assert(MathUtils::bangNhau(tg2.tinhDienTich(), 6.0));
 
-    // 4. Dien tich (Shoelace) khong phu thuoc chieu quay / thu tu dinh
+    // 4. Dien tich (Shoelace)
     TamGiac nguoc(Diem2D(0.0, 3.0), Diem2D(4.0, 0.0), Diem2D(0.0, 0.0));
     assert(MathUtils::bangNhau(nguoc.tinhDienTich(), 6.0));
     assert(MathUtils::bangNhau(nguoc.tinhChuVi(), 12.0));
 
-    // 5. Tam giac deu canh 2: dinh (0,0) (2,0) (1,sqrt3) -> chu vi 6, dien tich sqrt3
+    // 5. Tam giac deu
     const double can3 = std::sqrt(3.0);
     TamGiac deu(Diem2D(0.0, 0.0), Diem2D(2.0, 0.0), Diem2D(1.0, can3));
     assert(MathUtils::bangNhau(deu.tinhChuVi(), 6.0));
     assert(MathUtils::bangNhau(deu.tinhDienTich(), can3));
 
-    // 6. Ca bien: tam giac suy bien (3 dinh thang hang) van duoc chap nhan, dien tich = 0
+    // 6. Ca bien: 3 dinh thang hang
     TamGiac thang(Diem2D(0.0, 0.0), Diem2D(1.0, 1.0), Diem2D(2.0, 2.0));
     assert(MathUtils::bangNhau(thang.tinhDienTich(), 0.0));
     assert(MathUtils::bangNhau(thang.tinhChuVi(), 4.0 * std::sqrt(2.0)));
     assert(thang.tam() == Diem2D(1.0, 1.0));
 
-    // 7. Ca bien: ba dinh trung nhau -> dien tich 0, chu vi 0
+    // 7. Ca bien: ba dinh trung nhau
     TamGiac trung(Diem2D(5.0, 5.0), Diem2D(5.0, 5.0), Diem2D(5.0, 5.0));
     assert(MathUtils::bangNhau(trung.tinhDienTich(), 0.0));
     assert(MathUtils::bangNhau(trung.tinhChuVi(), 0.0));
     assert(trung.tam() == Diem2D(5.0, 5.0));
 
-    // 8. Ca bien: toa do rat lon van tinh dung dien tich (sai so cho phep 1e-6)
+    // 8. Ca bien: toa do rat lon
     TamGiac lon(Diem2D(1e6, 1e6), Diem2D(1e6 + 4.0, 1e6), Diem2D(1e6, 1e6 + 3.0));
     assert(MathUtils::bangNhau(lon.tinhDienTich(), 6.0, 1e-6));
     assert(MathUtils::bangNhau(lon.tinhChuVi(), 12.0, 1e-6));
@@ -356,7 +354,7 @@ void testTamGiac() {
     assert(MathUtils::bangNhau(tinhTien.tinhDienTich(), 6.0));
     assert(MathUtils::bangNhau(tinhTien.tinhChuVi(), 12.0));
 
-    // 11. transform: xoay 90 do quanh goc toa do: (x, y) -> (-y, x)
+    // 11. transform: xoay 90 do
     TamGiac xoay90(0.0, 0.0, 4.0, 0.0, 0.0, 3.0);
     xoay90.transform(BienDoi2D::xoay(90.0, Diem2D(0.0, 0.0)));
     assert(xoay90.getDinh()[0] == Diem2D(0.0, 0.0));
@@ -365,13 +363,13 @@ void testTamGiac() {
     assert(MathUtils::bangNhau(xoay90.tinhDienTich(), 6.0));
     assert(MathUtils::bangNhau(xoay90.tinhChuVi(), 12.0));
 
-    // 12. transform: xoay goc bat ky (30 do) quanh mot diem bat ky -> khong doi kich thuoc
+    // 12. transform: xoay 30 do
     TamGiac xoay30(0.0, 0.0, 4.0, 0.0, 0.0, 3.0);
     xoay30.transform(BienDoi2D::xoay(30.0, Diem2D(7.0, -2.0)));
     assert(MathUtils::bangNhau(xoay30.tinhDienTich(), 6.0));
     assert(MathUtils::bangNhau(xoay30.tinhChuVi(), 12.0));
 
-    // 13. transform: scale deu x3 quanh goc toa do -> dien tich x9, chu vi x3
+    // 13. transform: scale deu x3
     TamGiac scale3(0.0, 0.0, 4.0, 0.0, 0.0, 3.0);
     scale3.transform(BienDoi2D::tiLeDeu(3.0, Diem2D(0.0, 0.0)));
     assert(scale3.getDinh()[1] == Diem2D(12.0, 0.0));
@@ -379,7 +377,7 @@ void testTamGiac() {
     assert(MathUtils::bangNhau(scale3.tinhDienTich(), 54.0));
     assert(MathUtils::bangNhau(scale3.tinhChuVi(), 36.0));
 
-    // 14. transform: he so ti le AM -2 quanh goc -> dien tich x4, chu vi x2
+    // 14. transform: he so ti le AM -2
     TamGiac scaleAm(0.0, 0.0, 4.0, 0.0, 0.0, 3.0);
     scaleAm.transform(BienDoi2D::tiLeDeu(-2.0, Diem2D(0.0, 0.0)));
     assert(scaleAm.getDinh()[1] == Diem2D(-8.0, 0.0));
@@ -387,11 +385,11 @@ void testTamGiac() {
     assert(MathUtils::bangNhau(scaleAm.tinhDienTich(), 24.0));
     assert(MathUtils::bangNhau(scaleAm.tinhChuVi(), 24.0));
 
-    // 15. transform: tam giac suy bien van suy bien sau khi bien doi
+    // 15. transform: tam giac suy bien
     thang.transform(BienDoi2D::xoay(33.0, Diem2D(1.0, 1.0)));
     assert(MathUtils::bangNhau(thang.tinhDienTich(), 0.0));
 
-    // 16. transform + nghichDao (phuc vu Undo): ap dung roi hoan tac -> ve dung dinh ban dau
+    // 16. transform + nghichDao
     TamGiac undo(Diem2D(1.0, 2.0), Diem2D(5.0, 2.0), Diem2D(1.0, 5.0));
     BienDoi2D bd = BienDoi2D::tinhTien(3.0, -4.0) * BienDoi2D::xoay(60.0, Diem2D(0.0, 0.0));
     undo.transform(bd);
@@ -400,14 +398,14 @@ void testTamGiac() {
     assert(undo.getDinh()[1] == Diem2D(5.0, 2.0));
     assert(undo.getDinh()[2] == Diem2D(1.0, 5.0));
 
-    // 17. ve(): dung MOT dong, bat dau "TamGiac #<id>", ket thuc '\n'
+    // 17. ve()
     TamGiac hinhVe(Diem2D(0.0, 0.0), Diem2D(4.0, 0.0), Diem2D(0.0, 3.0));
     const std::string dongVe = veRaChuoi(hinhVe);
     assert(dongVe == "TamGiac #" + std::to_string(hinhVe.getId()) + ": d1=(0, 0) d2=(4, 0) d3=(0, 3)\n");
     assert(demKyTu(dongVe, '\n') == 1);
     assert(dongVe.back() == '\n');
 
-    // 18. toSVG(): the <polygon> day du thuoc tinh style, khong xuong dong cuoi
+    // 18. toSVG()
     TamGiac hinhSvg(0.0, 0.0, 4.0, 0.0, 0.0, 3.0);
     hinhSvg.setMauVien(MauSac(0, 255, 0, 255));
     hinhSvg.setMauNen(MauSac(255, 255, 0, 128));
@@ -417,11 +415,11 @@ void testTamGiac() {
                   " stroke-width=\"1\" fill=\"#FFFF00\" fill-opacity=\"0.501961\" />");
     assert(svg.back() != '\n');
 
-    // 19. toSVG(): sau khi tinh tien, toa do trong the SVG cung doi theo
+    // 19. toSVG() sau khi tinh tien
     hinhSvg.transform(BienDoi2D::tinhTien(10.0, 20.0));
     assert(chuaChuoi(hinhSvg.toSVG(), "points=\"10,20 14,20 10,23\""));
 
-    // 20. clone(): ban sao SAU, id MOI, cung hinh dang, cung style
+    // 20. clone()
     TamGiac goc(Diem2D(0.0, 0.0), Diem2D(4.0, 0.0), Diem2D(0.0, 3.0));
     goc.setMauVien(MauSac(0, 255, 0, 255));
     goc.setMauNen(MauSac(255, 255, 0, 128));
@@ -436,7 +434,7 @@ void testTamGiac() {
     assert(banSao->tam() == goc.tam());
     assert(banSao->toSVG() == goc.toSVG());
 
-    // 21. clone(): doc lap voi ban goc (sua ban goc khong anh huong ban sao va nguoc lai)
+    // 21. clone() doc lap
     goc.transform(BienDoi2D::tiLeDeu(2.0, Diem2D(0.0, 0.0)));
     assert(MathUtils::bangNhau(goc.tinhDienTich(), 24.0));
     assert(MathUtils::bangNhau(banSao->tinhDienTich(), 6.0));
@@ -444,7 +442,7 @@ void testTamGiac() {
     banSao->transform(BienDoi2D::tinhTien(1.0, 1.0));
     assert(goc.getDinh()[1] == Diem2D(8.0, 0.0));
 
-    // 22. clone() cua ban sao: lai co id moi, khac ca hai hinh truoc
+    // 22. clone() cua ban sao
     std::unique_ptr<HinhHoc2D> banSao2 = banSao->clone();
     assert(banSao2->getId() != banSao->getId());
     assert(banSao2->getId() != goc.getId());
@@ -455,7 +453,7 @@ void testTamGiac() {
 void testDaGiac() {
     std::cout << "[TEST] Kiem tra DaGiac..." << std::endl;
 
-    // 1. Hinh vuong 4x4 (4 dinh, nguoc chieu kim dong ho): chu vi 16, dien tich 16, tam (2, 2)
+    // 1. Hinh vuong 4x4
     std::vector<Diem2D> vuongDinh;
     vuongDinh.push_back(Diem2D(0.0, 0.0));
     vuongDinh.push_back(Diem2D(4.0, 0.0));
@@ -467,7 +465,7 @@ void testDaGiac() {
     assert(MathUtils::bangNhau(vuong.tinhDienTich(), 16.0));
     assert(vuong.tam() == Diem2D(2.0, 2.0));
 
-    // 2. Shoelace lay tri tuyet doi: dinh theo chieu KIM DONG HO cho cung dien tich
+    // 2. Shoelace theo chieu KIM DONG HO
     std::vector<Diem2D> vuongNguoc;
     vuongNguoc.push_back(Diem2D(0.0, 4.0));
     vuongNguoc.push_back(Diem2D(4.0, 4.0));
@@ -477,8 +475,7 @@ void testDaGiac() {
     assert(MathUtils::bangNhau(vuongKimDongHo.tinhDienTich(), 16.0));
     assert(MathUtils::bangNhau(vuongKimDongHo.tinhChuVi(), 16.0));
 
-    // 3. Da giac lom (hinh chu L): 6 dinh -> dien tich 36 - 16 = 20, chu vi 24
-    //    tam hop bao (3, 3), KHAC trung binh cac dinh (16/6, 16/6)
+    // 3. Da giac lom (hinh chu L)
     std::vector<Diem2D> chuLDinh;
     chuLDinh.push_back(Diem2D(0.0, 0.0));
     chuLDinh.push_back(Diem2D(6.0, 0.0));
@@ -492,7 +489,7 @@ void testDaGiac() {
     assert(chuL.tam() == Diem2D(3.0, 3.0));
     assert(!(chuL.tam() == Diem2D(16.0 / 6.0, 16.0 / 6.0)));
 
-    // 4. Luc giac deu ban kinh 2: dien tich 6*sqrt(3), chu vi 12
+    // 4. Luc giac deu ban kinh 2
     std::vector<Diem2D> lucGiacDinh;
     for (int k = 0; k < 6; ++k) {
         const double goc = MathUtils::tuDoSangRadian(60.0 * k);
@@ -503,7 +500,7 @@ void testDaGiac() {
     assert(MathUtils::bangNhau(lucGiac.tinhChuVi(), 12.0));
     assert(lucGiac.tam() == Diem2D(0.0, 0.0));
 
-    // 5. DaGiac 3 dinh cho cung ket qua voi TamGiac cung 3 dinh
+    // 5. DaGiac 3 dinh
     std::vector<Diem2D> tamGiacDinh;
     tamGiacDinh.push_back(Diem2D(0.0, 0.0));
     tamGiacDinh.push_back(Diem2D(4.0, 0.0));
@@ -514,14 +511,14 @@ void testDaGiac() {
     assert(MathUtils::bangNhau(dgTamGiac.tinhChuVi(), tgDoiChung.tinhChuVi()));
     assert(dgTamGiac.tam() == tgDoiChung.tam());
 
-    // 6. Ca bien: da giac rong (0 dinh) -> dien tich 0, chu vi 0, tam (0, 0)
+    // 6. Ca bien: da giac rong (0 dinh)
     DaGiac rong((std::vector<Diem2D>()));
     assert(rong.getDinh().empty());
     assert(MathUtils::bangNhau(rong.tinhDienTich(), 0.0));
     assert(MathUtils::bangNhau(rong.tinhChuVi(), 0.0));
     assert(rong.tam() == Diem2D(0.0, 0.0));
 
-    // 7. Ca bien: 1 dinh -> dien tich 0, chu vi 0
+    // 7. Ca bien: 1 dinh
     std::vector<Diem2D> motDinh;
     motDinh.push_back(Diem2D(2.0, 3.0));
     DaGiac mot(motDinh);
@@ -529,7 +526,7 @@ void testDaGiac() {
     assert(MathUtils::bangNhau(mot.tinhChuVi(), 0.0));
     assert(mot.tam() == Diem2D(2.0, 3.0));
 
-    // 8. Ca bien: 2 dinh (it hon 3) -> dien tich 0; chu vi = di va ve = 2 * khoang cach
+    // 8. Ca bien: 2 dinh
     std::vector<Diem2D> haiDinh;
     haiDinh.push_back(Diem2D(0.0, 0.0));
     haiDinh.push_back(Diem2D(3.0, 4.0));
@@ -538,7 +535,7 @@ void testDaGiac() {
     assert(MathUtils::bangNhau(hai.tinhChuVi(), 10.0));
     assert(hai.tam() == Diem2D(1.5, 2.0));
 
-    // 9. themDinh(): them dan tung dinh, tu rong den 3 dinh thi co dien tich
+    // 9. themDinh()
     DaGiac dan((std::vector<Diem2D>()));
     dan.themDinh(Diem2D(0.0, 0.0));
     dan.themDinh(Diem2D(4.0, 0.0));
@@ -550,7 +547,7 @@ void testDaGiac() {
     assert(MathUtils::bangNhau(dan.tinhDienTich(), 6.0));
     assert(MathUtils::bangNhau(dan.tinhChuVi(), 12.0));
 
-    // 10. Ca bien: cac dinh thang hang -> dien tich 0
+    // 10. Ca bien: cac dinh thang hang
     std::vector<Diem2D> thangHang;
     thangHang.push_back(Diem2D(0.0, 0.0));
     thangHang.push_back(Diem2D(1.0, 1.0));
@@ -559,8 +556,7 @@ void testDaGiac() {
     DaGiac thang(thangHang);
     assert(MathUtils::bangNhau(thang.tinhDienTich(), 0.0));
 
-    // 11. Ca bien: da giac tu cat (hinh no bom): Shoelace theo so vong quan nen hai nua
-    //     bu tru nhau -> dien tich = 0 (dung nhu quy uoc ghi trong DaGiac.h)
+    // 11. Ca bien: da giac tu cat
     std::vector<Diem2D> noBom;
     noBom.push_back(Diem2D(0.0, 0.0));
     noBom.push_back(Diem2D(2.0, 2.0));
@@ -570,7 +566,7 @@ void testDaGiac() {
     assert(MathUtils::bangNhau(tuCat.tinhDienTich(), 0.0));
     assert(MathUtils::bangNhau(tuCat.tinhChuVi(), 4.0 + 2.0 * std::sqrt(8.0)));
 
-    // 12. Ca bien: toa do rat lon van tinh dung dien tich (sai so cho phep 1e-6)
+    // 12. Ca bien: toa do rat lon
     std::vector<Diem2D> lonDinh;
     lonDinh.push_back(Diem2D(1e6, 1e6));
     lonDinh.push_back(Diem2D(1e6 + 4.0, 1e6));
@@ -591,7 +587,7 @@ void testDaGiac() {
     assert(MathUtils::bangNhau(tinhTien.tinhDienTich(), 16.0));
     assert(MathUtils::bangNhau(tinhTien.tinhChuVi(), 16.0));
 
-    // 14. transform: xoay 90 do quanh tam cua chinh no (hinh vuong -> cac dinh hoan vi vong tron)
+    // 14. transform: xoay 90 do quanh tam cua chinh no
     DaGiac xoay90(vuongDinh);
     xoay90.transform(BienDoi2D::xoay(90.0, xoay90.tam()));
     assert(xoay90.getDinh()[0] == Diem2D(4.0, 0.0));
@@ -600,27 +596,27 @@ void testDaGiac() {
     assert(xoay90.getDinh()[3] == Diem2D(0.0, 0.0));
     assert(xoay90.tam() == Diem2D(2.0, 2.0));
 
-    // 15. transform: xoay 90 do hinh chu L quanh tam hop bao (3, 3) -> kich thuoc khong doi
+    // 15. transform: xoay 90 do hinh chu L quanh tam hop bao (3, 3)
     DaGiac chuLXoay(chuLDinh);
     chuLXoay.transform(BienDoi2D::xoay(90.0, chuLXoay.tam()));
     assert(MathUtils::bangNhau(chuLXoay.tinhDienTich(), 20.0));
     assert(MathUtils::bangNhau(chuLXoay.tinhChuVi(), 24.0));
     assert(chuLXoay.tam() == Diem2D(3.0, 3.0));
 
-    // 16. transform: xoay goc bat ky (37 do) khong lam doi dien tich, chu vi
+    // 16. transform: xoay goc bat ky (37 do)
     DaGiac xoay37(chuLDinh);
     xoay37.transform(BienDoi2D::xoay(37.0, Diem2D(-1.0, 4.0)));
     assert(MathUtils::bangNhau(xoay37.tinhDienTich(), 20.0));
     assert(MathUtils::bangNhau(xoay37.tinhChuVi(), 24.0));
 
-    // 17. transform: scale deu x2 quanh goc toa do -> dien tich x4, chu vi x2
+    // 17. transform: scale deu x2
     DaGiac scale2(vuongDinh);
     scale2.transform(BienDoi2D::tiLeDeu(2.0, Diem2D(0.0, 0.0)));
     assert(scale2.getDinh()[2] == Diem2D(8.0, 8.0));
     assert(MathUtils::bangNhau(scale2.tinhDienTich(), 64.0));
     assert(MathUtils::bangNhau(scale2.tinhChuVi(), 32.0));
 
-    // 18. transform: thu nho x0.5 quanh tam cua chinh no -> tam khong doi
+    // 18. transform: thu nho x0.5 quanh tam cua chinh no
     DaGiac thuNho(vuongDinh);
     thuNho.transform(BienDoi2D::tiLeDeu(0.5, thuNho.tam()));
     assert(thuNho.getDinh()[0] == Diem2D(1.0, 1.0));
@@ -628,12 +624,12 @@ void testDaGiac() {
     assert(thuNho.tam() == Diem2D(2.0, 2.0));
     assert(MathUtils::bangNhau(thuNho.tinhDienTich(), 4.0));
 
-    // 19. transform: da giac rong - bien doi khong lam gi, khong loi
+    // 19. transform: da giac rong
     rong.transform(BienDoi2D::tinhTien(5.0, 5.0));
     assert(rong.getDinh().empty());
     assert(MathUtils::bangNhau(rong.tinhDienTich(), 0.0));
 
-    // 20. transform + nghichDao (phuc vu Undo): ap dung roi hoan tac -> ve dung dinh ban dau
+    // 20. transform + nghichDao (Undo)
     DaGiac undo(chuLDinh);
     BienDoi2D bd = BienDoi2D::tinhTien(-3.0, 8.0) * BienDoi2D::xoay(75.0, Diem2D(1.0, 1.0)) *
                    BienDoi2D::tiLeDeu(2.5, Diem2D(0.0, 0.0));
@@ -643,7 +639,7 @@ void testDaGiac() {
         assert(undo.getDinh()[i] == chuLDinh[i]);
     }
 
-    // 21. ve(): dung MOT dong "DaGiac #<id>: <n> dinh [...]", ket thuc '\n'
+    // 21. ve()
     DaGiac hinhVe(vuongDinh);
     const std::string dongVe = veRaChuoi(hinhVe);
     assert(dongVe == "DaGiac #" + std::to_string(hinhVe.getId()) +
@@ -651,7 +647,7 @@ void testDaGiac() {
     assert(demKyTu(dongVe, '\n') == 1);
     assert(dongVe.back() == '\n');
 
-    // 22. toSVG(): the <polygon> day du thuoc tinh style, khong xuong dong cuoi
+    // 22. toSVG()
     DaGiac hinhSvg(vuongDinh);
     hinhSvg.setMauVien(MauSac(0, 0, 255, 255));
     hinhSvg.setMauNen(MauSac(255, 0, 0, 0));
@@ -661,7 +657,7 @@ void testDaGiac() {
                   " stroke-width=\"4\" fill=\"#FF0000\" fill-opacity=\"0\" />");
     assert(svg.back() != '\n');
 
-    // 23. toSVG(): so dinh thay doi (themDinh / transform) thi chuoi points thay doi theo
+    // 23. toSVG() dong
     DaGiac svgDong((std::vector<Diem2D>()));
     assert(chuaChuoi(svgDong.toSVG(), "points=\"\""));
     svgDong.themDinh(Diem2D(1.0, 2.0));
@@ -671,7 +667,7 @@ void testDaGiac() {
     svgDong.transform(BienDoi2D::tinhTien(1.0, 1.0));
     assert(chuaChuoi(svgDong.toSVG(), "points=\"2,3 4,5 6,1\""));
 
-    // 24. clone(): ban sao SAU, id MOI, cung hinh dang, cung style
+    // 24. clone()
     DaGiac goc(chuLDinh);
     goc.setMauVien(MauSac(0, 0, 255, 255));
     goc.setMauNen(MauSac(255, 0, 0, 0));
@@ -687,7 +683,7 @@ void testDaGiac() {
     assert(banSao->tam() == goc.tam());
     assert(banSao->toSVG() == goc.toSVG());
 
-    // 25. clone(): doc lap voi ban goc (sua danh sach dinh cua ban goc khong anh huong ban sao)
+    // 25. clone() doc lap
     goc.themDinh(Diem2D(-5.0, -5.0));
     assert(goc.getDinh().size() == chuLDinh.size() + 1);
     assert(banSaoDg->getDinh().size() == chuLDinh.size());
@@ -697,7 +693,7 @@ void testDaGiac() {
     banSao->transform(BienDoi2D::tinhTien(-1.0, -1.0));
     assert(goc.getDinh()[0] == Diem2D(50.0, 50.0));
 
-    // 26. clone() cua ban sao: lai co id moi, khac ca hai hinh truoc
+    // 26. clone() cua ban sao
     std::unique_ptr<HinhHoc2D> banSao2 = banSao->clone();
     assert(banSao2->getId() != banSao->getId());
     assert(banSao2->getId() != goc.getId());
@@ -708,7 +704,6 @@ void testDaGiac() {
 void testDaHinhChung() {
     std::cout << "[TEST] Kiem tra da hinh (con tro co so HinhHoc2D) cho HinhChuNhat, TamGiac, DaGiac..." << std::endl;
 
-    // Goi ham ao qua unique_ptr<HinhHoc2D>: hinh chu nhat 4x3, tam giac 3-4-5, hinh vuong 2x2
     std::vector<Diem2D> vuong2;
     vuong2.push_back(Diem2D(0.0, 0.0));
     vuong2.push_back(Diem2D(2.0, 0.0));
@@ -735,7 +730,7 @@ void testDaHinhChung() {
     assert(ds[1]->getId() != ds[2]->getId());
     assert(ds[0]->getId() != ds[2]->getId());
 
-    // 3. clone() qua con tro co so: dung kieu that cua tung hinh, id moi, cung dien tich
+    // 3. clone() qua con tro co so
     for (const auto& h : ds) {
         std::unique_ptr<HinhHoc2D> b = h->clone();
         assert(b != nullptr);
@@ -748,7 +743,7 @@ void testDaHinhChung() {
     assert(dynamic_cast<TamGiac*>(ds[1]->clone().get()) != nullptr);
     assert(dynamic_cast<DaGiac*>(ds[2]->clone().get()) != nullptr);
 
-    // 4. transform() qua con tro co so: scale x2 quanh goc -> tong dien tich x4
+    // 4. transform() qua con tro co so
     for (auto& h : ds) {
         h->transform(BienDoi2D::tiLeDeu(2.0, Diem2D(0.0, 0.0)));
     }
@@ -758,7 +753,7 @@ void testDaHinhChung() {
     }
     assert(MathUtils::bangNhau(tongSau, 88.0));
 
-    // 5. ve() qua con tro co so: moi hinh in dung MOT dong, dung ten lop
+    // 5. ve() qua con tro co so
     assert(chuaChuoi(veRaChuoi(*ds[0]), "HinhChuNhat #"));
     assert(chuaChuoi(veRaChuoi(*ds[1]), "TamGiac #"));
     assert(chuaChuoi(veRaChuoi(*ds[2]), "DaGiac #"));

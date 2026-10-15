@@ -2,6 +2,17 @@
 #include "shapes/HinhHoc2D.h"
 #include <array>
 
+// ============================================================================
+// TamGiac - hình tam giác 3 đỉnh (Composite: Leaf, Prototype: clone())
+// Tầng: shapes | Phụ trách: Hồ Hưng
+//
+// QUY ƯỚC:
+//  - dinh_ lưu 3 đỉnh theo đúng thứ tự người dùng nhập (d1, d2, d3).
+//  - Tam giác suy biến (3 đỉnh thẳng hàng) vẫn được chấp nhận ở tầng này, diện tích = 0;
+//    việc từ chối đầu vào thẳng hàng do ShapeFactory đảm nhiệm.
+//  - tam() trả về tâm HỘP BAO (bounding box) đúng như hợp đồng của HinhHoc2D::tam(),
+//    KHÔNG phải trọng tâm tam giác.
+// ============================================================================
 class TamGiac : public HinhHoc2D {
 private:
     std::array<Diem2D, 3> dinh_;

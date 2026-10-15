@@ -12,7 +12,7 @@ private:
     std::size_t layerHienTai_;  
 
 public:
-    BangVeCanvas(double rong, double cao);
+    explicit BangVeCanvas(double rong = 800.0, double cao = 600.0);
     BangVeCanvas(const BangVeCanvas&) = delete;
     BangVeCanvas& operator=(const BangVeCanvas&) = delete;
     BangVeCanvas(BangVeCanvas&&) = delete;
@@ -29,4 +29,5 @@ public:
     const HinhHoc2D* timHinh(int id) const;
     std::size_t layerChuaHinh(int id) const;
 };
+
 

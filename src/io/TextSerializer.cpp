@@ -608,6 +608,7 @@ void TextSerializer::deserialize(BangVeCanvas& canvas, std::istream& is) {
             auto& ld = parsedLayers[i];
             if (i < canvas.soLayer()) {
                 Layer& existingLay = canvas.layer(i);
+                existingLay.setTen(ld.ten);
                 existingLay.setHien(ld.hien);
                 existingLay.setKhoa(ld.khoa);
                 for (auto& h : ld.danhSachHinh) {
@@ -658,3 +659,4 @@ void TextSerializer::inBangVe(const BangVeCanvas& canvas, std::ostream& os) {
     }
     os << "========================================================\n";
 }
+

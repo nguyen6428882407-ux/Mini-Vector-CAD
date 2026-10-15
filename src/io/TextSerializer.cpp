@@ -8,6 +8,7 @@
 #include "shapes/TamGiac.h"
 #include "shapes/DaGiac.h"
 #include "shapes/GroupShape.h"
+#include "shapes/NetVeTuDo.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -170,6 +171,11 @@ namespace {
         } else if (auto dg = dynamic_cast<const DaGiac*>(&hinh)) {
             os << "dagiac";
             for (const auto& pt : dg->getDinh()) {
+                os << " " << pt.getX() << " " << pt.getY();
+            }
+        } else if (auto brush = dynamic_cast<const NetVeTuDo*>(&hinh)) {
+            os << "brush " << brush->getDiem().size();
+            for (const auto& pt : brush->getDiem()) {
                 os << " " << pt.getX() << " " << pt.getY();
             }
         } else {

@@ -3,6 +3,8 @@
 #include "canvas/Layer.h"
 #include "shapes/ShapeFactory.h"
 #include "shapes/DoanThang.h"
+#include "shapes/DoanCong.h"
+#include "shapes/DoanSong.h"
 #include "shapes/HinhTron.h"
 #include "shapes/HinhChuNhat.h"
 #include "shapes/TamGiac.h"
@@ -158,6 +160,14 @@ namespace {
         } else if (auto dt = dynamic_cast<const DoanThang*>(&hinh)) {
             os << "doanthang " << dt->getDiem1().getX() << " " << dt->getDiem1().getY() << " "
                << dt->getDiem2().getX() << " " << dt->getDiem2().getY();
+        } else if (auto dc = dynamic_cast<const DoanCong*>(&hinh)) {
+            os << "doancong " << dc->getDiem1().getX() << " " << dc->getDiem1().getY() << " "
+               << dc->getDiemDieuKhien().getX() << " " << dc->getDiemDieuKhien().getY() << " "
+               << dc->getDiem2().getX() << " " << dc->getDiem2().getY();
+        } else if (auto ds = dynamic_cast<const DoanSong*>(&hinh)) {
+            os << "doansong " << ds->getDiem1().getX() << " " << ds->getDiem1().getY() << " "
+               << ds->getDiem2().getX() << " " << ds->getDiem2().getY() << " "
+               << ds->getBienDo() << " " << ds->getSoSong();
         } else if (auto cn = dynamic_cast<const HinhChuNhat*>(&hinh)) {
             const auto& d = cn->getDinh();
             double w = d[0].khoangCach(d[1]);

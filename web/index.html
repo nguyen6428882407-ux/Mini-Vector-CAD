@@ -13,61 +13,439 @@
       <span class="brand-mark">V</span>
       <span>mini<span class="brand-light">vector</span><small>CAD STUDIO</small></span>
     </a>
-    <div class="document-name"><span class="status-dot"></span> Bản vẽ chưa lưu <span class="muted">·</span> 800 × 600</div>
+    <div class="document-name"><span class="status-dot"></span> Bản vẽ chưa lưu <span class="muted">·</span> 1200 × 900</div>
     <div class="top-actions">
-      <button class="button button-quiet" id="undo" title="Hoàn tác (Ctrl+Z)" disabled>↶ <span>Hoàn tác</span></button>
-      <button class="button button-quiet" id="redo" title="Làm lại (Ctrl+Y)" disabled>↷ <span>Làm lại</span></button>
-      <button class="button button-quiet theme-toggle" id="theme-toggle" title="Chuyển giao diện sáng/tối" aria-label="Chuyển giao diện sáng/tối">☀ <span>Sáng</span></button>
-      <button class="button button-primary" id="export">↓ <span>Xuất SVG</span></button>
+      <button class="button button-quiet" id="undo" title="Hoàn tác (Ctrl+Z)" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg><span>Hoàn tác</span>
+      </button>
+      <button class="button button-quiet" id="redo" title="Làm lại (Ctrl+Y)" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>Làm lại</span>
+      </button>
+      <button class="button button-quiet theme-toggle" id="theme-toggle" title="Chuyển giao diện sáng/tối" aria-label="Chuyển giao diện sáng/tối">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><span>Sáng</span>
+      </button>
+      <button class="button button-primary" id="export">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Xuất SVG</span>
+      </button>
     </div>
   </header>
 
   <main class="app-shell">
     <aside class="tool-rail" aria-label="Công cụ vẽ">
       <div class="tool-group">
-        <button class="tool active" data-tool="select" title="Chọn, di chuyển, đổi kích thước và xoay (V)" aria-label="Chọn, di chuyển, đổi kích thước và xoay"><span>↖</span></button>
-        <button class="tool" data-tool="rect" title="Hình chữ nhật (R)" aria-label="Hình chữ nhật"><span>▭</span></button>
-        <button class="tool" data-tool="circle" title="Hình tròn (C)" aria-label="Hình tròn"><span>◯</span></button>
-        <button class="tool" data-tool="line" title="Đoạn thẳng (L)" aria-label="Đoạn thẳng"><span>／</span></button>
-        <button class="tool" data-tool="triangle" title="Tam giác (T)" aria-label="Tam giác"><span>△</span></button>
-        <button class="tool" data-tool="brush" title="Bút vẽ tự do (P)" aria-label="Bút vẽ tự do"><span>✎</span></button>
-        <button class="tool" data-tool="eraser" title="Gôm (E)" aria-label="Gôm"><span>⌫</span></button>
+        <div class="tool-flyout-wrapper">
+          <button class="tool active" id="select-menu-btn" data-tool="select" title="Công cụ chọn: Di chuyển tự do (V), Quét chọn nhóm hình (G)" aria-label="Công cụ chọn" style="position: relative; font-size: 0;">
+            <svg id="select-tool-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3l7 18 3-7 7-3L3 3z"/>
+              <path d="M13 13l6 6"/>
+            </svg>
+            <span class="tool-chevron">▾</span>
+          </button>
+          <div class="shapes-flyout-board" id="select-flyout-board" hidden>
+            <div class="shapes-board-title">Công cụ chọn & nhóm</div>
+            <div class="shapes-board-list">
+              <button class="shape-opt-btn active" data-select-mode="select" title="Di chuyển tự do (V) - Click chọn đơn, di chuyển, đổi kích thước & xoay">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 3l7 18 3-7 7-3L3 3z"/>
+                    <path d="M13 13l6 6"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Di chuyển tự do</span>
+                <kbd>V</kbd>
+              </button>
+              <button class="shape-opt-btn" data-select-mode="group_select" title="Quét chọn nhóm hình (G) - Quét chuột bao quanh nhiều hình để di chuyển/nhóm">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="2" width="20" height="20" rx="3" stroke-dasharray="3 3"/>
+                    <path d="M7 7l6 14 2.5-6 6-2.5L7 7z"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Quét chọn nhóm hình</span>
+                <kbd>G</kbd>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="tool-flyout-wrapper">
+          <button class="tool" id="shapes-menu-btn" data-tool="shapes" title="Các hình học: Chữ nhật (R), Tròn (C), Tam giác (T), Đoạn thẳng (L)" aria-label="Hình học" style="position: relative; font-size: 0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="8.5" cy="8.5" r="5.5"/>
+              <rect x="9.5" y="9.5" width="10" height="10" rx="1.5"/>
+            </svg>
+            <span class="tool-chevron">▾</span>
+          </button>
+          <div class="shapes-flyout-board" id="shapes-flyout-board" hidden>
+            <div class="shapes-board-title">Hình học</div>
+            <div class="shapes-board-list">
+              <button class="shape-opt-btn active" data-shape="rect" title="Hình chữ nhật (R)">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="4" width="16" height="12" rx="1.5"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Hình chữ nhật</span>
+                <kbd>R</kbd>
+              </button>
+              <button class="shape-opt-btn" data-shape="circle" title="Hình tròn (C)">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="10" cy="10" r="7.5"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Hình tròn</span>
+                <kbd>C</kbd>
+              </button>
+              <button class="shape-opt-btn" data-shape="triangle" title="Tam giác (T)">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="10,3 18,17 2,17"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Tam giác</span>
+                <kbd>T</kbd>
+              </button>
+              <button class="shape-opt-btn" data-shape="star" title="Ngôi sao (S)">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="10,2 12.6,7.3 18.5,8.1 14.2,12.3 15.2,18.2 10,15.5 4.8,18.2 5.8,12.3 1.5,8.1 7.4,7.3"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Ngôi sao</span>
+                <kbd>S</kbd>
+              </button>
+              <button class="shape-opt-btn" data-shape="ellipse" title="Hình elip (O)">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <ellipse cx="10" cy="10" rx="8" ry="5"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Hình elip</span>
+                <kbd>O</kbd>
+              </button>
+              <button class="shape-opt-btn" data-shape="parallelogram" title="Hình bình hành (B)">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="6,4 18,4 14,16 2,16"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Hình bình hành</span>
+                <kbd>B</kbd>
+              </button>
+              <button class="shape-opt-btn" data-shape="trapezoid" title="Hình thang (H)">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="5,4 15,4 18,16 2,16"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Hình thang</span>
+                <kbd>H</kbd>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="tool-flyout-wrapper">
+          <button class="tool" id="lines-menu-btn" data-tool="lines" title="Đường nét: Đoạn thẳng (L), Mũi tên (A), Đoạn cong, Đoạn sóng" aria-label="Đường nét" style="position: relative; font-size: 0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="20" x2="20" y2="4"/>
+              <path d="M4 10c5-3 7 7 16 4"/>
+            </svg>
+            <span class="tool-chevron">▾</span>
+          </button>
+          <div class="shapes-flyout-board" id="lines-flyout-board" hidden>
+            <div class="shapes-board-title">Đường nét</div>
+            <div class="shapes-board-list">
+              <button class="shape-opt-btn" data-line-tool="line" title="Đoạn thẳng (L)">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="3" y1="17" x2="17" y2="3"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Đoạn thẳng</span>
+                <kbd>L</kbd>
+              </button>
+              <button class="shape-opt-btn" data-line-tool="arrow" title="Mũi tên (A)">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="3" y1="10" x2="17" y2="10"/>
+                    <polyline points="11 4 17 10 11 16"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Mũi tên</span>
+                <kbd>A</kbd>
+              </button>
+              <button class="shape-opt-btn" data-line-tool="curve" title="Đoạn cong">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 14 Q 10 4 17 14"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Đoạn cong</span>
+              </button>
+              <button class="shape-opt-btn" data-line-tool="wave" title="Đoạn sóng">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 10 Q 6 4 10 10 T 18 10"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Đoạn sóng</span>
+              </button>
+              <button class="shape-opt-btn" data-line-tool="dimension" title="Đo kích thước CAD (D)">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="2"/>
+                    <line x1="6" y1="5" x2="6" y2="10"/>
+                    <line x1="10" y1="5" x2="10" y2="8"/>
+                    <line x1="14" y1="5" x2="14" y2="10"/>
+                    <line x1="18" y1="5" x2="18" y2="8"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Đo kích thước</span>
+                <kbd>D</kbd>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="tool-flyout-wrapper">
+          <button class="tool" id="brush-menu-btn" data-tool="brush" title="Bút vẽ: Cọ vẽ, Bút lông, Bút vuốt nét (P)" aria-label="Bút vẽ" style="position: relative; font-size: 0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+              <path d="M2 2l7.586 7.586"/>
+              <circle cx="11" cy="11" r="2"/>
+            </svg>
+            <span class="tool-chevron">▾</span>
+          </button>
+          <div class="shapes-flyout-board" id="brush-flyout-board" hidden>
+            <div class="shapes-board-title">Loại bút vẽ</div>
+            <div class="shapes-board-list">
+              <button class="shape-opt-btn active" data-brush-type="round" title="Cọ vẽ thông thường (nét tròn đều)">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 11l-7.5-7.5a2.12 2.12 0 0 0-3 3L15 14"/><path d="M14 15l2 2"/><path d="M11 18c-2 2-5 3-7 3 0-2 1-5 3-7l7-7"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Cọ vẽ (Brush)</span>
+              </button>
+              <button class="shape-opt-btn" data-brush-type="calligraphy" title="Bút lông (Nét vát thanh đậm)">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><line x1="2" y1="2" x2="9" y2="9"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Bút lông</span>
+              </button>
+              <button class="shape-opt-btn" data-brush-type="taper" title="Bút vuốt nét (Nét đầu & cuối nhỏ hơn thân)">
+                <span class="shape-opt-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 21s4-1 7-4 7-4 11-14c-10 4-11 8-14 11s-4 7-4 7z"/><line x1="3" y1="21" x2="9" y2="15"/>
+                  </svg>
+                </span>
+                <span class="shape-opt-label">Bút vuốt nét</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <button class="tool" id="ruler-tool-btn" data-tool="ruler" title="Thước kẻ CAD: Bật/Tắt thước đo tỷ lệ & vạch chia (M)" aria-label="Thước kẻ CAD" style="font-size: 0;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="5" width="20" height="14" rx="2"/>
+            <line x1="6" y1="5" x2="6" y2="10"/>
+            <line x1="10" y1="5" x2="10" y2="8"/>
+            <line x1="14" y1="5" x2="14" y2="10"/>
+            <line x1="18" y1="5" x2="18" y2="8"/>
+          </svg>
+        </button>
+        <button class="tool" data-tool="text" title="Văn bản (T)" aria-label="Văn bản" style="font-size:0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 7 4 4 20 4 20 7"></polyline>
+            <line x1="9" y1="20" x2="15" y2="20"></line>
+            <line x1="12" y1="4" x2="12" y2="20"></line>
+          </svg>
+        </button>
+        <button class="tool" data-tool="eraser" title="Gôm (E)" aria-label="Gôm" style="font-size:0"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l10-10 7 7-2.5 2.5"/><path d="M6.5 17.5l4-4"/></svg></button>
+        <button class="tool" id="insert-image-btn" title="Chèn ảnh vào layer (I)" aria-label="Chèn ảnh" style="font-size:0"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>
       </div>
+      <input type="file" id="image-file-input" accept="image/*" style="display:none">
       <div class="rail-spacer"></div>
       <button class="tool tool-bottom" id="help" title="Phím tắt" aria-label="Phím tắt">?</button>
     </aside>
 
     <section class="workspace">
       <div class="canvas-toolbar">
-        <div class="breadcrumb"><span>Bản vẽ</span><span class="slash">/</span><strong>Untitled</strong></div>
+        <div class="breadcrumb">
+          <span>Bản vẽ</span>
+          <span class="slash">/</span>
+          <strong class="breadcrumb-title" id="breadcrumb-title" title="Nhấp để đổi tên bản vẽ" tabindex="0">Untitled</strong>
+          <button class="breadcrumb-rename-btn" id="breadcrumb-rename-btn" title="Đổi tên bản vẽ" aria-label="Đổi tên bản vẽ" style="font-size:0;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+          </button>
+        </div>
         <div class="canvas-actions">
+          <button class="icon-button" id="snap-grid-btn" title="Bật/Tắt Bắt điểm lưới (Snap to Grid) - [S]" aria-label="Bắt điểm lưới" style="font-size:0;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4v7a8 8 0 0 0 16 0V4"/>
+              <path d="M4 8h4"/>
+              <path d="M16 8h4"/>
+            </svg>
+          </button>
           <span class="zoom-label" id="zoom-label">100%</span>
-          <button class="icon-button" id="zoom-out" title="Thu nhỏ">−</button>
-          <button class="icon-button" id="zoom-in" title="Phóng to">+</button>
-          <button class="icon-button" id="fit" title="Vừa khung">⛶</button>
+          <button class="icon-button" id="zoom-out" title="Thu nhỏ" style="font-size:0;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button class="icon-button" id="zoom-in" title="Phóng to" style="font-size:0;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button class="icon-button" id="fit" title="Vừa khung" style="font-size:0;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          </button>
         </div>
       </div>
-      <div class="canvas-stage" id="canvas-stage">
-        <svg id="drawing" viewBox="0 0 800 600" role="img" aria-label="Vùng vẽ vector">
+      <div class="canvas-viewport" id="canvas-viewport">
+        <div class="ruler-corner" id="ruler-corner">px</div>
+        <canvas class="ruler-canvas" id="ruler-top"></canvas>
+        <canvas class="ruler-canvas" id="ruler-left"></canvas>
+        <div class="canvas-stage" id="canvas-stage">
+          <textarea id="canvas-inline-text-editor" class="canvas-inline-text-editor" placeholder="Nhập văn bản..." hidden></textarea>
+        <svg id="drawing" viewBox="0 0 1200 900" role="img" aria-label="Vùng vẽ vector">
           <defs>
             <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
               <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#dfe5ec" stroke-width="1"/>
             </pattern>
           </defs>
-          <rect class="grid-bg" width="800" height="600" fill="url(#grid)"/>
+          <rect class="grid-bg" width="1200" height="900" fill="url(#grid)"/>
           <g id="artwork"></g>
-          <rect class="canvas-outline" x=".5" y=".5" width="799" height="599" fill="none" pointer-events="none"/>
+          <g id="smart-guides"></g>
+          <rect class="canvas-outline" x=".5" y=".5" width="1199" height="899" fill="none" pointer-events="none"/>
         </svg>
         <div class="selection-toolbar" id="selection-toolbar" role="toolbar" aria-label="Thao tác hình đã chọn" hidden>
-          <button class="selection-action" id="copy-shape" title="Sao chép hình (Ctrl+C)">⧉ <span>Sao chép</span></button>
-          <button class="selection-action" id="duplicate-shape" title="Tạo bản sao">＋ <span>Nhân bản</span></button>
-          <button class="selection-action" id="paste-shape" title="Dán hình (Ctrl+V)" disabled>▣ <span>Dán</span></button>
+          <button class="selection-action" id="group-shapes" title="Nhóm các hình đã chọn (Ctrl+G)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="7" width="10" height="10" rx="2"/>
+              <rect x="12" y="7" width="10" height="10" rx="2"/>
+              <path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/>
+            </svg>
+            <span>Nhóm</span>
+          </button>
+          <button class="selection-action" id="ungroup-shapes" title="Rã nhóm hình (Ctrl+Shift+G)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="9" width="8" height="8" rx="2"/>
+              <rect x="14" y="9" width="8" height="8" rx="2"/>
+              <line x1="10" y1="5" x2="14" y2="5" stroke-dasharray="2 2"/>
+            </svg>
+            <span>Rã nhóm</span>
+          </button>
           <span class="selection-toolbar-divider"></span>
-          <button class="selection-action delete-action" id="delete-shape" title="Xóa hình đã chọn">⌫ <span>Xóa</span></button>
+          <button class="selection-action" id="copy-shape" title="Sao chép hình (Ctrl+C)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            <span>Sao chép</span>
+          </button>
+          <button class="selection-action" id="duplicate-shape" title="Tạo bản sao">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span>Nhân bản</span>
+          </button>
+          <button class="selection-action" id="paste-shape" title="Dán hình (Ctrl+V)" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+            </svg>
+            <span>Dán</span>
+          </button>
+          <span class="selection-toolbar-divider"></span>
+          <button class="selection-action" id="bring-front" title="Lên trên cùng (Bring to Front)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="17 11 12 6 7 11"/>
+              <polyline points="17 18 12 13 7 18"/>
+            </svg>
+            <span>Lên đỉnh</span>
+          </button>
+          <button class="selection-action" id="send-back" title="Xuống dưới cùng (Send to Back)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="7 13 12 18 17 13"/>
+              <polyline points="7 6 12 11 17 6"/>
+            </svg>
+            <span>Xuống đáy</span>
+          </button>
+          <button class="selection-action" id="flip-h" title="Lật ngang (Flip Horizontal)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="17 8 21 12 17 16"/>
+              <polyline points="7 16 3 12 7 8"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+            </svg>
+            <span>Lật ngang</span>
+          </button>
+          <button class="selection-action" id="flip-v" title="Lật dọc (Flip Vertical)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="8 7 12 3 16 7"/>
+              <polyline points="16 17 12 21 8 17"/>
+              <line x1="12" y1="3" x2="12" y2="21"/>
+            </svg>
+            <span>Lật dọc</span>
+          </button>
+          <span class="selection-toolbar-divider"></span>
+          <button class="selection-action" id="align-left" title="Căn lề trái">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="21" x2="4" y2="3"/>
+              <rect x="8" y="6" width="12" height="4" rx="1"/>
+              <rect x="8" y="14" width="8" height="4" rx="1"/>
+            </svg>
+          </button>
+          <button class="selection-action" id="align-center-h" title="Căn giữa ngang">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="21" x2="12" y2="3"/>
+              <rect x="6" y="6" width="12" height="4" rx="1"/>
+              <rect x="8" y="14" width="8" height="4" rx="1"/>
+            </svg>
+          </button>
+          <button class="selection-action" id="align-right" title="Căn lề phải">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="20" y1="21" x2="20" y2="3"/>
+              <rect x="4" y="6" width="12" height="4" rx="1"/>
+              <rect x="8" y="14" width="8" height="4" rx="1"/>
+            </svg>
+          </button>
+          <button class="selection-action" id="align-top" title="Căn lề trên">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="4" x2="21" y2="4"/>
+              <rect x="6" y="8" width="4" height="12" rx="1"/>
+              <rect x="14" y="8" width="4" height="8" rx="1"/>
+            </svg>
+          </button>
+          <button class="selection-action" id="align-center-v" title="Căn giữa dọc">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <rect x="6" y="6" width="4" height="12" rx="1"/>
+              <rect x="14" y="8" width="4" height="8" rx="1"/>
+            </svg>
+          </button>
+          <button class="selection-action" id="align-bottom" title="Căn lề dưới">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="20" x2="21" y2="20"/>
+              <rect x="6" y="4" width="4" height="12" rx="1"/>
+              <rect x="14" y="8" width="4" height="8" rx="1"/>
+            </svg>
+          </button>
+          <span class="selection-toolbar-divider"></span>
+          <button class="selection-action delete-action" id="delete-shape" title="Xóa hình đã chọn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            <span>Xóa</span>
+          </button>
         </div>
         <div class="canvas-hint" id="canvas-hint">Chọn công cụ hình để bắt đầu vẽ</div>
       </div>
-      <footer class="statusbar">
+    </div>
+    <footer class="statusbar">
         <span id="status-message">Sẵn sàng</span>
         <span><i class="status-dot"></i> <span id="backend-status">Đang kết nối C++...</span></span>
         <span id="cursor-position">X: — &nbsp; Y: —</span>
@@ -78,7 +456,19 @@
       <div class="panel-section layers-section">
         <div class="section-heading">
           <div><span class="eyebrow">CẤU TRÚC</span><h2>Layers</h2></div>
-          <button class="icon-button add-layer" id="add-layer" title="Thêm layer">＋</button>
+          <button class="icon-button add-layer" id="add-layer" title="Thêm layer" aria-label="Thêm layer" style="font-size:0;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+        <div class="layer-search-wrapper">
+          <span class="layer-search-icon" aria-hidden="true">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <input type="text" id="layer-search-input" class="layer-search-input" placeholder="Tìm kiếm layer..." autocomplete="off">
+          <button id="layer-search-clear" class="layer-search-clear" title="Xóa tìm kiếm" hidden>×</button>
         </div>
         <div class="layer-list" id="layer-list"></div>
       </div>
@@ -89,11 +479,25 @@
         </div>
         <p class="property-empty" id="property-empty">Chọn một hình trên canvas để chỉnh màu và nét vẽ.</p>
         <div class="property-controls" id="property-controls" hidden>
-          <label class="color-property"><span>Màu viền</span><input id="stroke-color" type="color" value="#334155"></label>
-          <label class="color-property"><span>Màu nền</span><input id="fill-color" type="color" value="#dbeafe"></label>
+          <label class="color-property"><span>Màu viền</span><input id="stroke-color" type="color" value="#000000"></label>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <label class="color-property" style="flex:1;"><span>Màu nền</span><input id="fill-color" type="color" value="#ffffff"></label>
+            <label style="display:flex; align-items:center; gap:4px; font-size:11px; color:#c3ccd7; cursor:pointer;" title="Nền trong suốt (không tô màu)">
+              <input type="checkbox" id="fill-transparent-checkbox" checked style="cursor:pointer; accent-color:var(--accent);">
+              <span>Trong suốt</span>
+            </label>
+          </div>
           <label class="range-property"><span>Độ dày <output id="width-value">2</output></span><input id="stroke-width" type="range" min="1" max="12" value="2"></label>
         </div>
         <div class="tool-properties" id="brush-controls" hidden>
+          <label class="select-property" style="display:flex; justify-content:space-between; align-items:center; color:#c3ccd7; font-size:11px;">
+            <span>Loại bút</span>
+            <select id="brush-type-select" style="background:#222c39; color:#f1f5f9; border:1px solid #3a4655; border-radius:5px; padding:4px 8px; font-size:11px; cursor:pointer;">
+              <option value="round">Cọ vẽ (Brush)</option>
+              <option value="calligraphy">Bút lông</option>
+              <option value="taper">Bút vuốt nét</option>
+            </select>
+          </label>
           <label class="color-property"><span>Màu bút</span><input id="brush-color" type="color" value="#334155"></label>
           <label class="range-property"><span>Cỡ bút <output id="brush-width-value">6</output></span><input id="brush-width" type="range" min="1" max="40" value="6"></label>
           <label class="range-property" id="brush-opacity-control"><span>Độ đậm <output id="brush-opacity-value">100%</output></span><input id="brush-opacity" type="range" min="10" max="100" value="100"></label>
@@ -101,6 +505,45 @@
         <div class="tool-properties" id="eraser-controls" hidden>
           <label class="range-property"><span>Cỡ gôm <output id="eraser-width-value">18</output></span><input id="eraser-width" type="range" min="4" max="80" value="18"></label>
           <p class="property-empty">Gôm sẽ xóa nét bút tự do hoặc hình đang chạm.</p>
+        </div>
+        <div class="tool-properties" id="image-controls" hidden>
+          <p class="property-empty" style="margin-top:4px">Ảnh đã chèn vào layer. Kéo để di chuyển, dùng nút góc để đổi kích thước.</p>
+          <label class="range-property"><span>Độ mờ <output id="image-opacity-value">100%</output></span><input id="image-opacity" type="range" min="10" max="100" value="100"></label>
+        </div>
+        <div class="tool-properties" id="text-controls" hidden>
+          <label class="text-content-property" style="display:flex; flex-direction:column; gap:6px; color:#c3ccd7; font-size:11px;">
+            <span>Nội dung văn bản</span>
+            <textarea id="text-content-input" rows="2" placeholder="Nhập nội dung văn bản..." style="background:#1a2332; color:#f1f5f9; border:1px solid #3a4655; border-radius:6px; padding:6px 8px; font-family:inherit; font-size:12px; resize:vertical; outline:none;"></textarea>
+          </label>
+          <label class="select-property" style="display:flex; justify-content:space-between; align-items:center; color:#c3ccd7; font-size:11px;">
+            <span>Phông chữ</span>
+            <select id="text-font-family" style="background:#222c39; color:#f1f5f9; border:1px solid #3a4655; border-radius:5px; padding:4px 8px; font-size:11px; cursor:pointer;">
+              <option value="Segoe UI">Segoe UI</option>
+              <option value="Arial">Arial</option>
+              <option value="Times New Roman">Times New Roman</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Courier New">Courier New</option>
+              <option value="Tahoma">Tahoma</option>
+              <option value="Verdana">Verdana</option>
+              <option value="Impact">Impact</option>
+            </select>
+          </label>
+          <label class="range-property">
+            <span>Cỡ chữ <output id="text-size-value">24px</output></span>
+            <input id="text-font-size" type="range" min="10" max="100" value="24">
+          </label>
+          <label class="color-property">
+            <span>Màu chữ</span>
+            <input id="text-color" type="color" value="#000000">
+          </label>
+          <div class="text-style-bar" style="display:flex; gap:6px; align-items:center; margin-top:2px;">
+            <span style="color:#c3ccd7; font-size:11px; flex:1;">Kiểu chữ</span>
+            <div style="display:flex; gap:5px;">
+              <button type="button" class="text-style-btn" id="text-bold-btn" title="In đậm (Bold)" aria-label="In đậm"><b>B</b></button>
+              <button type="button" class="text-style-btn" id="text-italic-btn" title="Chữ nghiêng (Italic)" aria-label="Chữ nghiêng"><i>I</i></button>
+              <button type="button" class="text-style-btn" id="text-underline-btn" title="Gạch chân (Underline)" aria-label="Gạch chân"><u>U</u></button>
+            </div>
+          </div>
         </div>
       </div>
 

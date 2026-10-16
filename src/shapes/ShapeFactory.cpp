@@ -1,5 +1,7 @@
 #include "shapes/ShapeFactory.h"
 #include "shapes/DoanThang.h"
+#include "shapes/DoanCong.h"
+#include "shapes/DoanSong.h"
 #include "shapes/HinhTron.h"
 #include "shapes/HinhChuNhat.h"
 #include "shapes/TamGiac.h"
@@ -89,6 +91,52 @@ std::unique_ptr<HinhHoc2D> ShapeFactory::taoHinh(const std::string& moTa) {
             throw std::invalid_argument("Doan thang khong the co 2 dau mut trung nhau!");
         }
         hinh = std::make_unique<DoanThang>(Diem2D(x1, y1), Diem2D(x2, y2));
+    }
+    else if (loai == "doancong" || loai == "curve") {
+        std::string tokX1, tokY1, tokCx, tokCy, tokX2, tokY2;
+        if (!(iss >> tokX1 >> tokY1 >> tokCx >> tokCy >> tokX2 >> tokY2)) {
+            throw std::invalid_argument("Cu phap doan cong sai: can <x1> <y1> <cx> <cy> <x2> <y2>");
+        }
+        double x1 = 0, y1 = 0, cx = 0, cy = 0, x2 = 0, y2 = 0;
+        if (!parseDoubleToken(tokX1, x1) || !parseDoubleToken(tokY1, y1) ||
+            !parseDoubleToken(tokCx, cx) || !parseDoubleToken(tokCy, cy) ||
+            !parseDoubleToken(tokX2, x2) || !parseDoubleToken(tokY2, y2)) {
+            throw std::invalid_argument("Toa do doan cong phai la so huu han hop le!");
+        }
+        hinh = std::make_unique<DoanCong>(Diem2D(x1, y1), Diem2D(cx, cy), Diem2D(x2, y2));
+    }
+    else if (loai == "doansong" || loai == "wave") {
+        std::string tokX1, tokY1, tokX2, tokY2;
+        if (!(iss >> tokX1 >> tokY1 >> tokX2 >> tokY2)) {
+            throw std::invalid_argument("Cu phap doan song sai: can <x1> <y1> <x2> <y2>");
+        }
+        double x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+        if (!parseDoubleToken(tokX1, x1) || !parseDoubleToken(tokY1, y1) ||
+            !parseDoubleToken(tokX2, x2) || !parseDoubleToken(tokY2, y2)) {
+            throw std::invalid_argument("Toa do doan song phai la so huu han hop le!");
+        }
+        double bienDo = 15.0;
+        double soSong = 3.0;
+        std::string nextTok;
+        if (iss >> nextTok) {
+            if (isTag(nextTok)) {
+                pendingTag = nextTok;
+            } else {
+                if (!parseDoubleToken(nextTok, bienDo)) {
+                    throw std::invalid_argument("Bien do doan song khong hop le: " + nextTok);
+                }
+                if (iss >> nextTok) {
+                    if (isTag(nextTok)) {
+                        pendingTag = nextTok;
+                    } else {
+                        if (!parseDoubleToken(nextTok, soSong)) {
+                            throw std::invalid_argument("So song khong hop le: " + nextTok);
+                        }
+                    }
+                }
+            }
+        }
+        hinh = std::make_unique<DoanSong>(Diem2D(x1, y1), Diem2D(x2, y2), bienDo, soSong);
     }
     else if (loai == "chunhat" || loai == "rect" || loai == "rectangle") {
         std::string tokX, tokY, tokW, tokH;

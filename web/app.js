@@ -3307,12 +3307,15 @@ function scheduleCppSync() {
 }
 
 // Tự động nhận diện URL máy chủ C++:
-// - Nếu truy cập trực tiếp qua server C++ (port 8766): dùng đường dẫn tương đối ""
-// - Nếu truy cập qua Live Server hoặc máy khác trong mạng: dùng IP của máy chủ :8766
-// - Nếu mở dạng file:/// : dùng 127.0.0.1:8766
-const API_BASE_URL = window.location.protocol.startsWith("http")
-  ? (window.location.port === "8766" ? "" : `${window.location.protocol}//${window.location.hostname}:8766`)
-  : "http://127.0.0.1:8766";
+const API_BASE_URL = (() => {
+  if (!window.location.protocol.startsWith("http")) return "http://127.0.0.1:8766";
+  // Khi chạy trên Render (HTTPS port chuẩn 443) hoặc trực tiếp server C++ (port 8766): dùng đường dẫn tương đối ""
+  if (window.location.port === "" || window.location.port === "8766" || window.location.port === "443" || window.location.port === "80") {
+    return "";
+  }
+  // Khi chạy qua Live Server cục bộ (port 5500, 8765): gọi về backend port 8766
+  return `${window.location.protocol}//${window.location.hostname}:8766`;
+})();
 
 let currentProjectId = localStorage.getItem("mini-vector-cad-current-project-id") || "proj_default";
 
@@ -3789,7 +3792,7 @@ async function handleRegisterSubmit(event) {
 async function handleLogout() {
   if (authToken) {
     try {
-      await fetch("http://127.0.0.1:8766/api/logout", {
+      await fetch(`${API_BASE_URL}/api/logout`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${authToken}` }
       });

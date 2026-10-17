@@ -638,13 +638,13 @@ function render() {
   layers.forEach((layer, layerIndex) => {
     if (!layer.visible) return;
     const group = makeSvg("g", { "data-layer": layerIndex });
-    layer.shapes.forEach((shape, shapeIndex) => group.append(shapeElement(shape, layerIndex, shapeIndex)));
+    (layer.shapes || []).forEach((shape, shapeIndex) => group.append(shapeElement(shape, layerIndex, shapeIndex)));
     artwork.append(group);
   });
   if (selectedItems.length > 1) {
     multiSelectionHandles(selectedItems);
   } else if (selected && layers[selected.layer]?.visible) {
-    const selectedShape = layers[selected.layer].shapes[selected.shape];
+    const selectedShape = layers[selected.layer]?.shapes?.[selected.shape];
     const isEditingThis = currentEditingTextTarget && currentEditingTextTarget.shape === selectedShape;
     if (selectedShape && !isEditingThis) selectionHandles(selectedShape);
   }
@@ -873,7 +873,7 @@ function renderLayers() {
   [...filtered].reverse().forEach(({ layer, index }) => {
     const row = document.createElement("div");
     row.className = `layer-row${activeLayer === index ? " active" : ""}${layer.visible ? "" : " layer-hidden"}`;
-    row.innerHTML = `<span class="layer-icon">${layerBoxSvg}</span><span class="layer-name" title="Nhấp đúp để đổi tên"></span><span class="layer-count">${layer.shapes.length}</span><button class="layer-toggle${layer.visible ? "" : " off"}" title="${layer.visible ? "Ẩn layer" : "Hiện layer"}" aria-label="${layer.visible ? "Ẩn layer" : "Hiện layer"}">${layer.visible ? eyeOpenSvg : eyeClosedSvg}</button><button class="layer-delete" title="Xóa layer" aria-label="Xóa layer" ${layers.length === 1 ? "disabled" : ""}>${layerDeleteSvg}</button>`;
+    row.innerHTML = `<span class="layer-icon">${layerBoxSvg}</span><span class="layer-name" title="Nhấp đúp để đổi tên"></span><span class="layer-count">${(layer.shapes || []).length}</span><button class="layer-toggle${layer.visible ? "" : " off"}" title="${layer.visible ? "Ẩn layer" : "Hiện layer"}" aria-label="${layer.visible ? "Ẩn layer" : "Hiện layer"}">${layer.visible ? eyeOpenSvg : eyeClosedSvg}</button><button class="layer-delete" title="Xóa layer" aria-label="Xóa layer" ${layers.length === 1 ? "disabled" : ""}>${layerDeleteSvg}</button>`;
     const nameEl = row.querySelector(".layer-name");
     nameEl.textContent = layer.name;
 
@@ -2937,8 +2937,13 @@ function updateThemeToggleUI() {
 document.querySelector("#theme-toggle").addEventListener("click", () => {
   theme = theme === "dark" ? "light" : "dark";
   localStorage.setItem("mini-vector-cad-theme", theme);
-  render();
+  document.documentElement.dataset.theme = theme;
   updateThemeToggleUI();
+  try {
+    render();
+  } catch (err) {
+    console.warn("Lỗi khi render lại theo theme:", err);
+  }
   setStatus(`Đã chuyển sang giao diện ${theme === "dark" ? "tối" : "sáng"}`);
 });
 
@@ -3690,11 +3695,9 @@ function renderUserAuthSection() {
 
 function resetCanvasToBlank() {
   layers.splice(0, layers.length, {
-    id: 1,
     name: "Layer 1",
     visible: true,
-    locked: false,
-    items: []
+    shapes: []
   });
   activeLayer = 0;
   selected = null;

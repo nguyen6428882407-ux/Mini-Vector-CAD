@@ -13,20 +13,81 @@
       <span class="brand-mark">V</span>
       <span>mini<span class="brand-light">vector</span><small>CAD STUDIO</small></span>
     </a>
-    <div class="document-name"><span class="status-dot"></span> Bản vẽ chưa lưu <span class="muted">·</span> 1200 × 900</div>
+    <div class="project-header-bar">
+      <div class="project-picker-wrapper">
+        <button type="button" class="project-picker-btn" id="project-picker-btn" title="Chọn dự án để vẽ">
+          <span class="project-current-icon owner" id="project-current-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/>
+              <circle cx="5" cy="4" r="1.5" fill="currentColor"/>
+              <circle cx="12" cy="4" r="1.5" fill="currentColor"/>
+              <circle cx="19" cy="4" r="1.5" fill="currentColor"/>
+              <line x1="5" y1="20" x2="19" y2="20" stroke-width="2.2"/>
+            </svg>
+          </span>
+          <span class="project-current-name" id="project-current-name">Dự án 1</span>
+          <svg class="project-picker-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+
+        <div class="project-dropdown-menu" id="project-dropdown-menu" hidden>
+          <div class="project-dropdown-header">
+            <span>Danh sách dự án</span>
+            <span class="project-dropdown-count" id="project-dropdown-count">1</span>
+          </div>
+          <div class="project-dropdown-list" id="project-dropdown-list">
+            <!-- Rendered by JS -->
+          </div>
+          <div class="project-dropdown-footer">
+            <button type="button" class="project-dropdown-create-btn" id="btn-dropdown-create-project">
+              <span class="plus-icon">+</span>
+              <span>Tạo dự án mới</span>
+            </button>
+          </div>
+        </div>
+
+        <select id="project-select" class="project-select-dropdown-hidden" hidden aria-hidden="true">
+          <option value="proj_default">Dự án 1</option>
+        </select>
+        <button type="button" class="project-new-btn" id="btn-create-project-open" title="Tạo dự án mới">+</button>
+      </div>
+      <button type="button" class="button button-quiet btn-invite-collab" id="btn-invite-open" title="Mời người khác vào vẽ chung">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="8.5" cy="7" r="4"></circle>
+          <line x1="20" y1="8" x2="20" y2="14"></line>
+          <line x1="23" y1="11" x2="17" y2="11"></line>
+        </svg>
+        <span>Mời vẽ chung</span>
+        <span class="member-count-badge" id="member-count-badge" hidden>0</span>
+      </button>
+    </div>
     <div class="top-actions">
       <button class="button button-quiet" id="undo" title="Hoàn tác (Ctrl+Z)" disabled>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg><span>Hoàn tác</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg><span>Hoàn tác</span>
       </button>
       <button class="button button-quiet" id="redo" title="Làm lại (Ctrl+Y)" disabled>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>Làm lại</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>Làm lại</span>
       </button>
       <button class="button button-quiet theme-toggle" id="theme-toggle" title="Chuyển giao diện sáng/tối" aria-label="Chuyển giao diện sáng/tối">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><span>Sáng</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><span>Sáng</span>
       </button>
       <button class="button button-primary" id="export">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Xuất SVG</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Xuất SVG</span>
       </button>
+      <div class="user-auth-section" id="user-auth-section">
+        <button class="button button-quiet" id="btn-login-open" title="Đăng nhập">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span>Đăng nhập</span>
+        </button>
+        <button class="button button-secondary" id="btn-register-open" title="Đăng ký tài khoản">
+          <span>Đăng ký</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -553,6 +614,139 @@
       </div>
     </aside>
   </main>
+
+  <!-- Auth Modal: Login -->
+  <div class="auth-modal-backdrop" id="modal-login" hidden>
+    <div class="auth-modal">
+      <div class="auth-modal-header">
+        <h3 class="auth-modal-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px; margin-right: 6px;">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+            <polyline points="10 17 15 12 10 7"></polyline>
+            <line x1="15" y1="12" x2="3" y2="12"></line>
+          </svg>Đăng nhập tài khoản
+        </h3>
+        <button class="auth-modal-close" id="login-modal-close" title="Đóng">&times;</button>
+      </div>
+      <form id="form-login" class="auth-form" onsubmit="return false;">
+        <div class="auth-msg" id="login-msg" hidden></div>
+        <div class="auth-field">
+          <label for="login-username">Tên đăng nhập</label>
+          <input type="text" id="login-username" placeholder="Nhập tên đăng nhập..." autocomplete="username" required>
+        </div>
+        <div class="auth-field">
+          <label for="login-password">Mật khẩu</label>
+          <input type="password" id="login-password" placeholder="Nhập mật khẩu..." autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="button button-primary auth-submit-btn" id="btn-login-submit">Đăng nhập</button>
+        <div class="auth-switch">
+          <span>Chưa có tài khoản?</span>
+          <a href="#" id="link-to-register">Đăng ký ngay</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Auth Modal: Register -->
+  <div class="auth-modal-backdrop" id="modal-register" hidden>
+    <div class="auth-modal">
+      <div class="auth-modal-header">
+        <h3 class="auth-modal-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px; margin-right: 6px;">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="8.5" cy="7" r="4"></circle>
+            <line x1="20" y1="8" x2="20" y2="14"></line>
+            <line x1="23" y1="11" x2="17" y2="11"></line>
+          </svg>Đăng ký tài khoản
+        </h3>
+        <button class="auth-modal-close" id="register-modal-close" title="Đóng">&times;</button>
+      </div>
+      <form id="form-register" class="auth-form" onsubmit="return false;">
+        <div class="auth-msg" id="register-msg" hidden></div>
+        <div class="auth-field">
+          <label for="register-fullname">Họ và tên</label>
+          <input type="text" id="register-fullname" placeholder="Ví dụ: Nguyễn Văn A" autocomplete="name">
+        </div>
+        <div class="auth-field">
+          <label for="register-username">Tên đăng nhập <small>(3-32 ký tự, không dấu)</small></label>
+          <input type="text" id="register-username" placeholder="Ví dụ: nguyenvana" autocomplete="username" required>
+        </div>
+        <div class="auth-field">
+          <label for="register-password">Mật khẩu <small>(tối thiểu 6 ký tự)</small></label>
+          <input type="password" id="register-password" placeholder="Tạo mật khẩu..." autocomplete="new-password" required minlength="6">
+        </div>
+        <div class="auth-field">
+          <label for="register-confirm-password">Nhập lại mật khẩu</label>
+          <input type="password" id="register-confirm-password" placeholder="Nhập lại mật khẩu..." autocomplete="new-password" required minlength="6">
+        </div>
+        <button type="submit" class="button button-primary auth-submit-btn" id="btn-register-submit">Tạo tài khoản</button>
+        <div class="auth-switch">
+          <span>Đã có tài khoản?</span>
+          <a href="#" id="link-to-login">Đăng nhập</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Collab Modal: Invite Collaborator -->
+  <div class="auth-modal-backdrop" id="modal-invite" hidden>
+    <div class="auth-modal" style="width: 440px;">
+      <div class="auth-modal-header">
+        <h3 class="auth-modal-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px; margin-right: 6px;">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="8.5" cy="7" r="4"></circle>
+            <line x1="20" y1="8" x2="20" y2="14"></line>
+            <line x1="23" y1="11" x2="17" y2="11"></line>
+          </svg>Mời bạn bè cùng vẽ
+        </h3>
+        <button class="auth-modal-close" id="invite-modal-close" title="Đóng">&times;</button>
+      </div>
+      <div style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">
+        Dự án: <b id="invite-target-project-name" style="color: #f1f5f9;">Bản vẽ chung</b>
+      </div>
+      <form id="form-invite" class="auth-form" onsubmit="return false;">
+        <div class="auth-msg" id="invite-msg" hidden></div>
+        <div class="auth-field">
+          <label for="invite-username">Tên đăng nhập muốn mời (Username)</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="invite-username" placeholder="Nhập username (ví dụ: NhatVuuu)..." style="flex: 1;" required>
+            <button type="submit" class="button button-primary" id="btn-invite-submit" style="white-space: nowrap;">Gửi lời mời</button>
+          </div>
+        </div>
+      </form>
+
+      <div class="project-members-section" style="margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px;">
+        <div style="font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 8px;">Thành viên đang tham gia:</div>
+        <div class="project-members-list" id="project-members-list">
+          <!-- Member items injected by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Create New Project -->
+  <div class="auth-modal-backdrop" id="modal-create-project" hidden>
+    <div class="auth-modal">
+      <div class="auth-modal-header">
+        <h3 class="auth-modal-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px; margin-right: 6px;">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>Tạo dự án bản vẽ mới
+        </h3>
+        <button class="auth-modal-close" id="create-project-modal-close" title="Đóng">&times;</button>
+      </div>
+      <form id="form-create-project" class="auth-form" onsubmit="return false;">
+        <div class="auth-msg" id="create-project-msg" hidden></div>
+        <div class="auth-field">
+          <label for="create-project-name">Tên dự án</label>
+          <input type="text" id="create-project-name" placeholder="Ví dụ: Thiết kế Sơ đồ Mạng, Bản vẽ Logo..." required>
+        </div>
+        <button type="submit" class="button button-primary auth-submit-btn" id="btn-create-project-submit">Tạo và Bắt đầu vẽ</button>
+      </form>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

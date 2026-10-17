@@ -1,8 +1,11 @@
 #include "web/ProjectServer.h"
 #include "canvas/BangVeCanvas.h"
 #include "io/TextSerializer.h"
+#include "auth/UserManager.h"
+#include "auth/ProjectManager.h"
 #include <algorithm>
 #include <cctype>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -70,10 +73,75 @@ std::string lowercase(std::string value) {
     return value;
 }
 
+std::string escapeJsonString(const std::string& s) {
+    std::string res;
+    res.reserve(s.size() + 8);
+    for (char c : s) {
+        if (c == '"') res += "\\\"";
+        else if (c == '\\') res += "\\\\";
+        else if (c == '\n') res += "\\n";
+        else if (c == '\r') res += "\\r";
+        else if (c == '\t') res += "\\t";
+        else res += c;
+    }
+    return res;
+}
+
+std::string extractJsonString(const std::string& json, const std::string& key) {
+    std::string needle = "\"" + key + "\"";
+    std::size_t pos = json.find(needle);
+    if (pos == std::string::npos) return "";
+    pos = json.find(':', pos + needle.size());
+    if (pos == std::string::npos) return "";
+    pos = json.find('"', pos + 1);
+    if (pos == std::string::npos) return "";
+    std::size_t start = pos + 1;
+    std::string result;
+    bool escaped = false;
+    for (std::size_t i = start; i < json.size(); ++i) {
+        char c = json[i];
+        if (escaped) {
+            if (c == '"') result += '"';
+            else if (c == '\\') result += '\\';
+            else if (c == 'n') result += '\n';
+            else if (c == 't') result += '\t';
+            else result += c;
+            escaped = false;
+        } else if (c == '\\') {
+            escaped = true;
+        } else if (c == '"') {
+            break;
+        } else {
+            result += c;
+        }
+    }
+    return result;
+}
+
+std::string extractBearerToken(const std::string& authHeader) {
+    if (authHeader.rfind("Bearer ", 0) == 0) {
+        return authHeader.substr(7);
+    }
+    return authHeader;
+}
+
+std::string extractQueryParam(const std::string& query, const std::string& param) {
+    if (query.empty()) return "";
+    std::string needle = param + "=";
+    std::size_t pos = query.find(needle);
+    if (pos == std::string::npos) return "";
+    if (pos != 0 && query[pos - 1] != '&' && query[pos - 1] != '?') return "";
+    std::size_t start = pos + needle.size();
+    std::size_t end = query.find('&', start);
+    if (end == std::string::npos) return query.substr(start);
+    return query.substr(start, end - start);
+}
+
 struct Request {
     std::string method;
     std::string path;
     std::string origin;
+    std::string authorization;
     std::string body;
 };
 
@@ -121,6 +189,8 @@ bool receiveRequest(Socket socket, Request& request, std::string& error) {
         if (first != std::string::npos) value.erase(0, first);
         if (name == "origin") {
             request.origin = value;
+        } else if (name == "authorization") {
+            request.authorization = value;
         } else if (name == "content-length") {
             try {
                 std::size_t parsed = 0;
@@ -133,7 +203,7 @@ bool receiveRequest(Socket socket, Request& request, std::string& error) {
         }
     }
     if (contentLength > MAX_BODY_SIZE) {
-        error = "Du lieu ban ve vuot qua gioi han 20 MB.";
+        error = "Du lieu body vuot qua gioi han 20 MB.";
         return false;
     }
 
@@ -152,10 +222,21 @@ bool receiveRequest(Socket socket, Request& request, std::string& error) {
     return true;
 }
 
-bool isAllowedOrigin(const std::string& origin) {
-    return origin.empty()
-        || origin == "http://127.0.0.1:8765"
-        || origin == "http://localhost:8765";
+bool isAllowedOrigin(const std::string& /*origin*/) {
+    // Cho phép kết nối từ mọi thiết bị trong mạng LAN / WiFi, domain, hoặc localhost
+    return true;
+}
+
+std::string readFileContent(const std::string& filePath, bool& success) {
+    std::ifstream file(filePath, std::ios::binary);
+    if (!file.is_open()) {
+        success = false;
+        return "";
+    }
+    std::ostringstream ss;
+    ss << file.rdbuf();
+    success = true;
+    return ss.str();
 }
 
 bool sendAll(Socket socket, const std::string& response) {
@@ -171,18 +252,22 @@ bool sendAll(Socket socket, const std::string& response) {
 }
 
 void respond(Socket socket, int status, const std::string& reason, const std::string& body,
-             const std::string& origin, const std::string& contentType = "text/plain; charset=utf-8") {
+             const std::string& origin, const std::string& contentType = "application/json; charset=utf-8") {
     std::ostringstream response;
     response << "HTTP/1.1 " << status << " " << reason << "\r\n"
              << "Content-Type: " << contentType << "\r\n"
              << "Content-Length: " << body.size() << "\r\n"
              << "Connection: close\r\n"
              << "Cache-Control: no-store\r\n";
-    if (!origin.empty() && isAllowedOrigin(origin)) {
+    if (!origin.empty()) {
         response << "Access-Control-Allow-Origin: " << origin << "\r\n"
                  << "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
-                 << "Access-Control-Allow-Headers: Content-Type\r\n"
+                 << "Access-Control-Allow-Headers: Content-Type, Authorization\r\n"
                  << "Vary: Origin\r\n";
+    } else {
+        response << "Access-Control-Allow-Origin: *\r\n"
+                 << "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+                 << "Access-Control-Allow-Headers: Content-Type, Authorization\r\n";
     }
     response << "\r\n" << body;
     sendAll(socket, response.str());
@@ -216,20 +301,24 @@ void ProjectServer::chay(std::uint16_t port) {
     sockaddr_in address{};
     address.sin_family = AF_INET;
     address.sin_port = htons(port);
-    if (inet_pton(AF_INET, "127.0.0.1", &address.sin_addr) != 1) {
-        throw std::runtime_error("Khong cau hinh duoc dia chi localhost.");
-    }
+    address.sin_addr.s_addr = INADDR_ANY; // Lắng nghe trên tất cả card mạng (0.0.0.0) để mọi máy tính/điện thoại kết nối được
     if (bind(listener.get(), reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) {
-        throw std::runtime_error("Khong bind duoc 127.0.0.1:" + std::to_string(port) + " (cong co the dang duoc su dung).");
+        throw std::runtime_error("Khong bind duoc cong " + std::to_string(port) + " (cong co the dang duoc su dung).");
     }
-    if (listen(listener.get(), 8) != 0) {
+    if (listen(listener.get(), 16) != 0) {
         throw std::runtime_error("Khong mo duoc TCP listener.");
     }
 
-    auto project = std::make_unique<BangVeCanvas>(800.0, 600.0);
-    project->themLayer("Layer 1");
-    std::cout << "C++ backend dang lang nghe tai http://127.0.0.1:" << port
-              << "/api/project (Ctrl+C de dung)\n";
+    UserManager userManager("output/users.txt");
+    ProjectManager projectManager(userManager, "output/projects");
+
+    std::cout << "===============================================================\n";
+    std::cout << "  C++ Mini Vector CAD Server da khoi dong thanh cong!\n";
+    std::cout << "  - Truy cap tren may nay:    http://127.0.0.1:" << port << "\n";
+    std::cout << "  - Truy cap tu may khac/LAN: http://<IP_MAY_TINH>:" << port << "\n";
+    std::cout << "  He thong tai khoan: " << userManager.userCount() << " nguoi dung da luu tru.\n";
+    std::cout << "  He thong cong tac du an: da san sang.\n";
+    std::cout << "===============================================================\n";
 
     while (true) {
         Socket clientSocket = accept(listener.get(), nullptr, nullptr);
@@ -240,40 +329,290 @@ void ProjectServer::chay(std::uint16_t port) {
         Request request;
         std::string requestError;
         if (!receiveRequest(client.get(), request, requestError)) {
-            respond(client.get(), 400, "Bad Request", requestError, "");
+            respond(client.get(), 400, "Bad Request", "{\"error\":\"" + escapeJsonString(requestError) + "\"}", "");
             continue;
         }
         if (!isAllowedOrigin(request.origin)) {
-            respond(client.get(), 403, "Forbidden", "Origin khong duoc phep.", "");
+            respond(client.get(), 403, "Forbidden", "{\"error\":\"Origin khong duoc phep.\"}", "");
             continue;
         }
-        if (request.method == "OPTIONS" && request.path == "/api/project") {
+
+        // Tách đường dẫn và tham số truy vấn (path vs query)
+        std::string rawPath = request.path;
+        std::string pathOnly = rawPath;
+        std::string queryStr;
+        auto qPos = rawPath.find('?');
+        if (qPos != std::string::npos) {
+            pathOnly = rawPath.substr(0, qPos);
+            queryStr = rawPath.substr(qPos + 1);
+        }
+
+        // Handle CORS Preflight
+        if (request.method == "OPTIONS") {
             respond(client.get(), 204, "No Content", "", request.origin);
-        } else if (request.path != "/api/project") {
-            respond(client.get(), 404, "Not Found", "Endpoint khong ton tai.", request.origin);
-        } else if (request.method == "GET") {
-            std::ostringstream body;
-            TextSerializer::serialize(*project, body);
-            respond(client.get(), 200, "OK", body.str(), request.origin);
-        } else if (request.method == "POST") {
-            try {
-                std::istringstream input(request.body);
-                auto stagedProject = std::make_unique<BangVeCanvas>(800.0, 600.0);
-                TextSerializer::deserialize(*stagedProject, input);
-                if (input.fail() || stagedProject->soLayer() == 0) {
-                    respond(client.get(), 400, "Bad Request", "Du lieu ban ve khong hop le.", request.origin);
-                    continue;
-                }
-                project = std::move(stagedProject);
-                std::ostringstream body;
-                TextSerializer::serialize(*project, body);
-                respond(client.get(), 200, "OK", body.str(), request.origin);
-                std::cout << "Da nhan va kiem tra ban ve tu giao dien web.\n";
-            } catch (const std::exception& error) {
-                respond(client.get(), 400, "Bad Request", error.what(), request.origin);
+            continue;
+        }
+
+        // ====================================================================
+        // STATIC WEB FILES (Phục vụ trực tiếp giao diện Web cho mọi thiết bị)
+        // ====================================================================
+        if (request.method == "GET" && (pathOnly == "/" || pathOnly == "/index.html")) {
+            bool ok = false;
+            std::string content = readFileContent("web/index.html", ok);
+            if (!ok) content = readFileContent("../web/index.html", ok);
+            if (ok) {
+                respond(client.get(), 200, "OK", content, request.origin, "text/html; charset=utf-8");
+            } else {
+                respond(client.get(), 404, "Not Found", "Không tìm thấy file web/index.html", request.origin, "text/plain; charset=utf-8");
             }
-        } else {
-            respond(client.get(), 405, "Method Not Allowed", "Chi ho tro GET, POST va OPTIONS.", request.origin);
+            continue;
+        }
+        else if (request.method == "GET" && pathOnly == "/style.css") {
+            bool ok = false;
+            std::string content = readFileContent("web/style.css", ok);
+            if (!ok) content = readFileContent("../web/style.css", ok);
+            if (ok) {
+                respond(client.get(), 200, "OK", content, request.origin, "text/css; charset=utf-8");
+            } else {
+                respond(client.get(), 404, "Not Found", "Không tìm thấy file web/style.css", request.origin, "text/plain; charset=utf-8");
+            }
+            continue;
+        }
+        else if (request.method == "GET" && pathOnly == "/app.js") {
+            bool ok = false;
+            std::string content = readFileContent("web/app.js", ok);
+            if (!ok) content = readFileContent("../web/app.js", ok);
+            if (ok) {
+                respond(client.get(), 200, "OK", content, request.origin, "application/javascript; charset=utf-8");
+            } else {
+                respond(client.get(), 404, "Not Found", "Không tìm thấy file web/app.js", request.origin, "text/plain; charset=utf-8");
+            }
+            continue;
+        }
+
+        // Endpoint: POST /api/register
+        if (pathOnly == "/api/register" && request.method == "POST") {
+            std::string username = extractJsonString(request.body, "username");
+            std::string password = extractJsonString(request.body, "password");
+            std::string fullName = extractJsonString(request.body, "fullName");
+
+            std::string token;
+            UserAccount newUser;
+            std::string err;
+            if (!userManager.registerUser(username, password, fullName, token, newUser, err)) {
+                std::string resBody = "{\"success\":false,\"message\":\"" + escapeJsonString(err) + "\"}";
+                respond(client.get(), 400, "Bad Request", resBody, request.origin);
+            } else {
+                std::ostringstream oss;
+                oss << "{\"success\":true,\"message\":\"Đăng ký tài khoản thành công!\","
+                    << "\"token\":\"" << token << "\","
+                    << "\"user\":{"
+                    << "\"username\":\"" << escapeJsonString(newUser.username) << "\","
+                    << "\"fullName\":\"" << escapeJsonString(newUser.fullName) << "\","
+                    << "\"createdAt\":\"" << escapeJsonString(newUser.createdAt) << "\""
+                    << "}}";
+                respond(client.get(), 200, "OK", oss.str(), request.origin);
+                std::cout << "[Auth] Dang ky thanh cong: " << newUser.username << "\n";
+            }
+        }
+        // Endpoint: POST /api/login
+        else if (pathOnly == "/api/login" && request.method == "POST") {
+            std::string username = extractJsonString(request.body, "username");
+            std::string password = extractJsonString(request.body, "password");
+
+            std::string token;
+            UserAccount user;
+            std::string err;
+            if (!userManager.loginUser(username, password, token, user, err)) {
+                std::string resBody = "{\"success\":false,\"message\":\"" + escapeJsonString(err) + "\"}";
+                respond(client.get(), 401, "Unauthorized", resBody, request.origin);
+            } else {
+                std::ostringstream oss;
+                oss << "{\"success\":true,\"message\":\"Đăng nhập thành công!\","
+                    << "\"token\":\"" << token << "\","
+                    << "\"user\":{"
+                    << "\"username\":\"" << escapeJsonString(user.username) << "\","
+                    << "\"fullName\":\"" << escapeJsonString(user.fullName) << "\","
+                    << "\"createdAt\":\"" << escapeJsonString(user.createdAt) << "\""
+                    << "}}";
+                respond(client.get(), 200, "OK", oss.str(), request.origin);
+                std::cout << "[Auth] Dang nhap thanh cong: " << user.username << "\n";
+            }
+        }
+        // Endpoint: GET /api/me
+        else if (pathOnly == "/api/me" && request.method == "GET") {
+            std::string token = extractBearerToken(request.authorization);
+            UserAccount user;
+            if (!userManager.validateToken(token, user)) {
+                respond(client.get(), 401, "Unauthorized", "{\"success\":false,\"message\":\"Chưa đăng nhập hoặc phiên đã hết hạn.\"}", request.origin);
+            } else {
+                std::ostringstream oss;
+                oss << "{\"success\":true,"
+                    << "\"user\":{"
+                    << "\"username\":\"" << escapeJsonString(user.username) << "\","
+                    << "\"fullName\":\"" << escapeJsonString(user.fullName) << "\","
+                    << "\"createdAt\":\"" << escapeJsonString(user.createdAt) << "\""
+                    << "}}";
+                respond(client.get(), 200, "OK", oss.str(), request.origin);
+            }
+        }
+        // Endpoint: POST /api/logout
+        else if (pathOnly == "/api/logout" && request.method == "POST") {
+            std::string token = extractBearerToken(request.authorization);
+            userManager.logout(token);
+            respond(client.get(), 200, "OK", "{\"success\":true,\"message\":\"Đã đăng xuất.\"}", request.origin);
+        }
+        // Endpoint: GET /api/projects - Lấy danh sách các dự án người dùng tham gia
+        else if (pathOnly == "/api/projects" && request.method == "GET") {
+            std::string token = extractBearerToken(request.authorization);
+            UserAccount user;
+            std::string username = "";
+            if (userManager.validateToken(token, user)) {
+                username = user.username;
+            }
+
+            auto list = projectManager.getProjectsForUser(username);
+            std::ostringstream oss;
+            oss << "{\"success\":true,\"projects\":[";
+            for (std::size_t i = 0; i < list.size(); ++i) {
+                const auto& p = list[i];
+                oss << "{"
+                    << "\"id\":\"" << escapeJsonString(p.id) << "\","
+                    << "\"name\":\"" << escapeJsonString(p.name) << "\","
+                    << "\"owner\":\"" << escapeJsonString(p.ownerUsername) << "\","
+                    << "\"isOwner\":" << (p.isOwner ? "true" : "false") << ","
+                    << "\"createdAt\":\"" << escapeJsonString(p.createdAt) << "\","
+                    << "\"updatedAt\":\"" << escapeJsonString(p.updatedAt) << "\","
+                    << "\"members\":[";
+                for (std::size_t j = 0; j < p.members.size(); ++j) {
+                    oss << "\"" << escapeJsonString(p.members[j]) << "\"";
+                    if (j + 1 < p.members.size()) oss << ",";
+                }
+                oss << "]}";
+                if (i + 1 < list.size()) oss << ",";
+            }
+            oss << "]}";
+            respond(client.get(), 200, "OK", oss.str(), request.origin);
+        }
+        // Endpoint: POST /api/projects - Tạo dự án mới
+        else if (pathOnly == "/api/projects" && request.method == "POST") {
+            std::string token = extractBearerToken(request.authorization);
+            UserAccount user;
+            std::string username = "";
+            if (userManager.validateToken(token, user)) {
+                username = user.username;
+            }
+            std::string name = extractJsonString(request.body, "name");
+            if (name.empty()) name = "Bản vẽ mới";
+
+            auto newProj = projectManager.createProject(name, username);
+            std::ostringstream oss;
+            oss << "{\"success\":true,\"message\":\"Tạo dự án mới thành công!\","
+                << "\"project\":{"
+                << "\"id\":\"" << escapeJsonString(newProj->id) << "\","
+                << "\"name\":\"" << escapeJsonString(newProj->name) << "\","
+                << "\"owner\":\"" << escapeJsonString(newProj->ownerUsername) << "\","
+                << "\"createdAt\":\"" << escapeJsonString(newProj->createdAt) << "\","
+                << "\"members\":[]"
+                << "}}";
+            respond(client.get(), 200, "OK", oss.str(), request.origin);
+            std::cout << "[Project] Tao du an moi: " << newProj->id << " (\"" << newProj->name << "\") boi " << newProj->ownerUsername << "\n";
+        }
+        // Endpoint: POST /api/projects/invite - Mời thành viên khác vào dự án
+        else if (pathOnly == "/api/projects/invite" && request.method == "POST") {
+            std::string token = extractBearerToken(request.authorization);
+            UserAccount user;
+            std::string requester = "";
+            if (userManager.validateToken(token, user)) {
+                requester = user.username;
+            }
+
+            std::string projectId = extractJsonString(request.body, "projectId");
+            std::string targetUsername = extractJsonString(request.body, "username");
+
+            std::string err;
+            std::string addedUsername;
+            if (!projectManager.inviteMember(projectId, requester, targetUsername, err, &addedUsername)) {
+                respond(client.get(), 400, "Bad Request", "{\"success\":false,\"message\":\"" + escapeJsonString(err) + "\"}", request.origin);
+            } else {
+                std::cout << "[Collab] Mời thanh cong '" << addedUsername << "' vao du an '" << projectId << "' boi '" << requester << "'\n";
+                respond(client.get(), 200, "OK", "{\"success\":true,\"message\":\"Đã mời " + escapeJsonString(addedUsername) + " vào dự án thành công!\",\"invited\":\"" + escapeJsonString(addedUsername) + "\"}", request.origin);
+            }
+        }
+        // Endpoint: POST /api/projects/remove_member - Xóa thành viên khỏi dự án
+        else if (pathOnly == "/api/projects/remove_member" && request.method == "POST") {
+            std::string token = extractBearerToken(request.authorization);
+            UserAccount user;
+            std::string requester = "";
+            if (userManager.validateToken(token, user)) {
+                requester = user.username;
+            }
+
+            std::string projectId = extractJsonString(request.body, "projectId");
+            std::string targetUsername = extractJsonString(request.body, "username");
+
+            std::string err;
+            if (!projectManager.removeMember(projectId, requester, targetUsername, err)) {
+                respond(client.get(), 400, "Bad Request", "{\"success\":false,\"message\":\"" + escapeJsonString(err) + "\"}", request.origin);
+            } else {
+                respond(client.get(), 200, "OK", "{\"success\":true,\"message\":\"Đã xóa thành viên khỏi dự án.\"}", request.origin);
+            }
+        }
+        // Endpoint: GET /api/project - Tải canvas của dự án cụ thể
+        else if (pathOnly == "/api/project" && request.method == "GET") {
+            std::string token = extractBearerToken(request.authorization);
+            UserAccount user;
+            std::string username = "";
+            if (userManager.validateToken(token, user)) {
+                username = user.username;
+            }
+
+            std::string projectId = extractQueryParam(queryStr, "id");
+            if (projectId.empty()) projectId = "proj_default";
+
+            auto proj = projectManager.getProject(projectId);
+            if (!proj) {
+                // Fallback nếu không thấy ID
+                proj = projectManager.getProject("proj_default");
+            }
+
+            if (!proj || !projectManager.hasAccess(proj->id, username)) {
+                respond(client.get(), 403, "Forbidden", "Bạn không có quyền truy cập dự án này.", request.origin, "text/plain; charset=utf-8");
+                continue;
+            }
+
+            std::ostringstream body;
+            TextSerializer::serialize(*proj->canvas, body);
+            respond(client.get(), 200, "OK", body.str(), request.origin, "text/plain; charset=utf-8");
+        }
+        // Endpoint: POST /api/project - Cập nhật canvas của dự án cụ thể
+        else if (pathOnly == "/api/project" && request.method == "POST") {
+            std::string token = extractBearerToken(request.authorization);
+            UserAccount user;
+            std::string username = "";
+            if (userManager.validateToken(token, user)) {
+                username = user.username;
+            }
+
+            std::string projectId = extractQueryParam(queryStr, "id");
+            if (projectId.empty()) projectId = "proj_default";
+
+            std::string err;
+            std::uint64_t newRev = projectManager.updateProjectCanvas(projectId, username, request.body, err);
+            if (newRev == 0) {
+                respond(client.get(), 400, "Bad Request", err, request.origin, "text/plain; charset=utf-8");
+                continue;
+            }
+
+            auto proj = projectManager.getProject(projectId);
+            std::ostringstream body;
+            if (proj && proj->canvas) {
+                TextSerializer::serialize(*proj->canvas, body);
+            }
+            respond(client.get(), 200, "OK", body.str(), request.origin, "text/plain; charset=utf-8");
+        }
+        else {
+            respond(client.get(), 404, "Not Found", "{\"error\":\"Endpoint khong ton tai.\"}", request.origin);
         }
     }
 }

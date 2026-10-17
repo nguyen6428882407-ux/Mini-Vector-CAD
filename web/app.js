@@ -3949,6 +3949,7 @@ document.addEventListener("keydown", event => {
   if (event.key === "Escape") {
     closeLoginModal();
     closeRegisterModal();
+    closeGuestNoticeModal();
     const dropdown = document.getElementById("user-dropdown-board");
     if (dropdown) dropdown.hidden = true;
     const projMenu = document.getElementById("project-dropdown-menu");
@@ -3980,10 +3981,27 @@ function getNextProjectNumber() {
   return maxNum + 1;
 }
 
+function showGuestNoticeModal(message, title = "Chế độ Khách · Bản vẽ riêng") {
+  const modal = document.getElementById("modal-guest-notice");
+  if (!modal) return;
+  const titleEl = document.getElementById("guest-notice-title");
+  const descEl = document.getElementById("guest-notice-desc");
+  if (titleEl && title) titleEl.textContent = title;
+  if (descEl && message) descEl.innerHTML = message;
+  modal.hidden = false;
+}
+
+function closeGuestNoticeModal() {
+  const modal = document.getElementById("modal-guest-notice");
+  if (modal) modal.hidden = true;
+}
+
 async function openInviteModal() {
   if (!currentUser || !authToken) {
-    alert("🔒 Bạn đang ở Chế độ Khách (Bản vẽ riêng cục bộ trên máy này).\n\nĐể mời bạn bè vẽ chung hoặc lưu trữ lên Cloud, vui lòng Đăng ký hoặc Đăng nhập!");
-    openLoginModal();
+    showGuestNoticeModal(
+      "Bạn đang ở <b>Chế độ Khách</b> (bản vẽ riêng cục bộ trên máy này, không gửi lên Cloud và không ai vẽ đè được).<br><br>Để <b>mời bạn bè cùng vẽ chung thời gian thực</b> hoặc lưu trữ bản vẽ lên Cloud, bạn chỉ cần Đăng ký hoặc Đăng nhập tài khoản!",
+      "Chế độ Khách · Cần Đăng nhập để Mời vẽ chung"
+    );
     return;
   }
 
@@ -4011,8 +4029,10 @@ function closeInviteModal() {
 
 function openCreateProjectModal() {
   if (!currentUser || !authToken) {
-    alert("🔒 Bạn cần Đăng ký hoặc Đăng nhập tài khoản để tạo và lưu dự án trên Cloud!");
-    openLoginModal();
+    showGuestNoticeModal(
+      "Bạn đang ở <b>Chế độ Khách</b>.<br><br>Để <b>tạo nhiều dự án mới</b> và lưu trữ an toàn trên đám mây C++ Cloud, bạn chỉ cần Đăng ký hoặc Đăng nhập tài khoản!",
+      "Chế độ Khách · Cần Đăng nhập để Tạo dự án"
+    );
     return;
   }
   hideAuthMessage("create-project-msg");
@@ -4039,7 +4059,18 @@ const SVG_ICON_OWNER = `<svg width="15" height="15" viewBox="0 0 24 24" fill="no
 
 const SVG_ICON_COLLAB = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="11" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
 
-const SVG_ICON_PRIVATE = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+const SVG_ICON_PRIVATE = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: -2px;">
+  <path d="M7 10V6.5C7 3.73858 9.23858 1.5 12 1.5C14.7614 1.5 17 3.73858 17 6.5V10" stroke="#cbd5e1" stroke-width="2.8" stroke-linecap="round"/>
+  <rect x="4" y="9" width="16" height="13.5" rx="3" fill="url(#gold-lock-grad)" stroke="#d97706" stroke-width="0.8"/>
+  <path d="M12 13.5C11.17 13.5 10.5 14.17 10.5 15C10.5 15.53 10.77 15.99 11.19 16.26L10.8 19H13.2L12.81 16.26C13.23 15.99 13.5 15.53 13.5 15C13.5 14.17 12.83 13.5 12 13.5Z" fill="#1e1b4b"/>
+  <defs>
+    <linearGradient id="gold-lock-grad" x1="4" y1="9" x2="20" y2="22.5" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="45%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+</svg>`;
 
 function renderMembersList(project) {
   const container = document.getElementById("project-members-list");
@@ -4485,6 +4516,14 @@ document.getElementById("btn-dropdown-create-project")?.addEventListener("click"
   const menu = document.getElementById("project-dropdown-menu");
   if (menu) menu.hidden = true;
   openCreateProjectModal();
+});
+
+// Guest notice modal events
+document.getElementById("guest-notice-modal-close")?.addEventListener("click", closeGuestNoticeModal);
+document.getElementById("btn-guest-notice-dismiss")?.addEventListener("click", closeGuestNoticeModal);
+document.getElementById("btn-guest-notice-login")?.addEventListener("click", () => {
+  closeGuestNoticeModal();
+  openLoginModal();
 });
 
 // Hook into auth login to reload projects

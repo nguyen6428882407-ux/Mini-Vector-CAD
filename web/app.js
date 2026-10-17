@@ -4059,18 +4059,7 @@ const SVG_ICON_OWNER = `<svg width="15" height="15" viewBox="0 0 24 24" fill="no
 
 const SVG_ICON_COLLAB = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="11" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
 
-const SVG_ICON_PRIVATE = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: -2px;">
-  <path d="M7 10V6.5C7 3.73858 9.23858 1.5 12 1.5C14.7614 1.5 17 3.73858 17 6.5V10" stroke="#cbd5e1" stroke-width="2.8" stroke-linecap="round"/>
-  <rect x="4" y="9" width="16" height="13.5" rx="3" fill="url(#gold-lock-grad)" stroke="#d97706" stroke-width="0.8"/>
-  <path d="M12 13.5C11.17 13.5 10.5 14.17 10.5 15C10.5 15.53 10.77 15.99 11.19 16.26L10.8 19H13.2L12.81 16.26C13.23 15.99 13.5 15.53 13.5 15C13.5 14.17 12.83 13.5 12 13.5Z" fill="#1e1b4b"/>
-  <defs>
-    <linearGradient id="gold-lock-grad" x1="4" y1="9" x2="20" y2="22.5" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#fef08a"/>
-      <stop offset="45%" stop-color="#fbbf24"/>
-      <stop offset="100%" stop-color="#f59e0b"/>
-    </linearGradient>
-  </defs>
-</svg>`;
+const SVG_ICON_PRIVATE = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="12" rx="2.5"/><path d="M7.5 10V6.5a4.5 4.5 0 0 1 9 0V10"/><circle cx="12" cy="15" r="1.2" fill="currentColor"/><path d="M12 16.2v2.3" stroke-width="2"/></svg>`;
 
 function renderMembersList(project) {
   const container = document.getElementById("project-members-list");

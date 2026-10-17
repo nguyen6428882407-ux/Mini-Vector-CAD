@@ -1,0 +1,8 @@
+build/
+cmake-build-*/
+out/
+.git
+.vscode
+.vs
+*.exe
+cloudflared.exe

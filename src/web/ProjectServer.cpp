@@ -389,6 +389,21 @@ void ProjectServer::chay(std::uint16_t port) {
             }
             continue;
         }
+        else if (request.method == "GET" && (pathOnly.rfind("/icons/", 0) == 0 || pathOnly == "/favicon.ico")) {
+            bool ok = false;
+            std::string relativePath = "web" + pathOnly;
+            std::string content = readFileContent(relativePath, ok);
+            if (!ok) content = readFileContent("../" + relativePath, ok);
+            if (ok) {
+                std::string mime = "image/png";
+                if (pathOnly.find(".svg") != std::string::npos) mime = "image/svg+xml";
+                else if (pathOnly.find(".ico") != std::string::npos) mime = "image/x-icon";
+                respond(client.get(), 200, "OK", content, request.origin, mime);
+            } else {
+                respond(client.get(), 404, "Not Found", "Không tìm thấy file icon", request.origin, "text/plain; charset=utf-8");
+            }
+            continue;
+        }
 
         // Endpoint: POST /api/register
         if (pathOnly == "/api/register" && request.method == "POST") {

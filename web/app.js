@@ -3341,7 +3341,7 @@ async function syncCppProject(reportStatus = true) {
     try {
       localStorage.setItem("mini-vector-cad-guest-drawing", serializeNativeProject());
       hasPendingLocalChanges = false;
-      if (reportStatus) setStatus("🔒 Bản vẽ riêng của Khách đã lưu cục bộ.");
+      if (reportStatus) setStatus("Bản vẽ riêng của Khách đã lưu cục bộ.");
     } catch (_) {}
     return;
   }
@@ -3408,7 +3408,7 @@ async function connectCppBackend() {
     backendConnected = true;
     const statusEl = document.querySelector("#backend-status");
     if (statusEl) statusEl.textContent = "Chế độ Khách · Bản vẽ riêng (Cục bộ)";
-    setStatus("🔒 Bạn đang ở Chế độ Khách (Bản vẽ riêng, không chia sẻ với ai)");
+    setStatus("Bạn đang ở Chế độ Khách (Bản vẽ riêng, không chia sẻ với ai)");
     return;
   }
 
@@ -4062,7 +4062,7 @@ const SVG_ICON_OWNER = `<svg width="15" height="15" viewBox="0 0 24 24" fill="no
 
 const SVG_ICON_COLLAB = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="11" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
 
-const SVG_ICON_PRIVATE = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="12" rx="2.5"/><path d="M7.5 10V6.5a4.5 4.5 0 0 1 9 0V10"/><circle cx="12" cy="15" r="1.2" fill="currentColor"/><path d="M12 16.2v2.3" stroke-width="2"/></svg>`;
+const SVG_ICON_PRIVATE = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="12" rx="2.5"/><path d="M7.5 10V6.5a4.5 4.5 0 0 1 9 0V10"/><circle cx="12" cy="15" r="1.3" fill="currentColor"/><path d="M12 16.2v2.3" stroke-width="2.5"/></svg>`;
 
 function renderMembersList(project) {
   const container = document.getElementById("project-members-list");
@@ -4076,8 +4076,8 @@ function renderMembersList(project) {
   let html = `
     <div style="font-size: 12px; margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: ${hasCollab ? "rgba(16, 185, 129, 0.12)" : "rgba(245, 158, 11, 0.12)"}; border: 1px solid ${hasCollab ? "rgba(16, 185, 129, 0.3)" : "rgba(245, 158, 11, 0.3)"}; color: ${hasCollab ? "#10b981" : "#f59e0b"};">
       ${hasCollab
-        ? `<b>👥 Chế độ: Đang vẽ chung</b> (${project.members.length + 1} người đang có quyền vẽ)`
-        : `<b>🔒 Chế độ: Bản vẽ riêng</b> (Chỉ một mình bạn có quyền xem & vẽ. Hãy mời bạn bè bên dưới để chuyển sang Vẽ chung!)`
+        ? `<b><span class="inline-lock-svg">${SVG_ICON_COLLAB}</span> Chế độ: Đang vẽ chung</b> (${project.members.length + 1} người đang có quyền vẽ)`
+        : `<b><span class="inline-lock-svg">${SVG_ICON_PRIVATE}</span> Chế độ: Bản vẽ riêng</b> (Chỉ một mình bạn có quyền xem & vẽ. Hãy mời bạn bè bên dưới để chuyển sang Vẽ chung!)`
       }
     </div>
     <div class="member-item">
@@ -4243,18 +4243,18 @@ function updateProjectSelector() {
       if (isGuest) {
         iconHtml = SVG_ICON_PRIVATE;
         badgeClass = "private guest";
-        roleDesc = "🔒 Bản vẽ riêng (Cục bộ trên máy này)";
+        roleDesc = "Bản vẽ riêng (Cục bộ trên máy này)";
       } else if (hasCollab) {
         iconHtml = SVG_ICON_COLLAB;
         badgeClass = "collab";
         const memberCount = (p.members ? p.members.length : 0) + 1;
         roleDesc = isOwner
-          ? `👥 Đang vẽ chung (${memberCount} người)`
-          : `👥 Được mời bởi @${p.owner}`;
+          ? `Đang vẽ chung (${memberCount} người)`
+          : `Được mời bởi @${p.owner}`;
       } else {
         iconHtml = SVG_ICON_PRIVATE;
         badgeClass = "private";
-        roleDesc = `🔒 Bản vẽ riêng Cloud (Chỉ mình bạn)`;
+        roleDesc = `Bản vẽ riêng Cloud (Chỉ mình bạn)`;
       }
 
       const itemBtn = document.createElement("button");
@@ -4317,7 +4317,7 @@ async function switchProject(projectId, forceReload = false) {
 
   if (!currentUser || !authToken || (proj && proj.isGuest)) {
     resetCanvasToBlank();
-    setStatus("🔒 Đang ở Chế độ Khách (Bản vẽ mới).");
+    setStatus("Đang ở Chế độ Khách (Bản vẽ mới).");
     return;
   }
 
@@ -4339,7 +4339,7 @@ async function switchProject(projectId, forceReload = false) {
     renderLayers();
     renderSelectionToolbar();
     const isCollab = proj && Array.isArray(proj.members) && proj.members.length > 0;
-    setStatus(isCollab ? `👥 Đã mở dự án vẽ chung "${proj.name}"!` : `🔒 Đã mở bản vẽ riêng "${proj ? proj.name : projectId}"!`);
+    setStatus(isCollab ? `Đã mở dự án vẽ chung "${proj.name}"!` : `Đã mở bản vẽ riêng "${proj ? proj.name : projectId}"!`);
   } catch (err) {
     setStatus(`Lỗi khi mở dự án: ${err.message}`);
   }

@@ -784,6 +784,17 @@ h2 { margin: 4px 0 0; color: #e6ebf1; font: 700 15px "Segoe UI", Arial, sans-ser
 :root[data-theme="light"] .project-current-icon.collab {
   color: #0369a1; /* Xanh sapphire sẫm tương phản cao */
 }
+:root[data-theme="light"] .project-current-icon.private,
+:root[data-theme="light"] .project-current-icon.guest {
+  color: #0f172a; /* Màu đen xanh than đậm nét, tương phản tối đa trên nền sáng */
+}
+:root[data-theme="light"] .project-current-icon svg {
+  stroke: #0f172a !important;
+  stroke-width: 2.6 !important;
+}
+:root[data-theme="light"] .project-current-icon svg circle {
+  fill: #0f172a !important;
+}
 
 .project-current-name {
   max-width: 170px;
@@ -959,6 +970,15 @@ h2 { margin: 4px 0 0; color: #e6ebf1; font: 700 15px "Segoe UI", Arial, sans-ser
   background: #f1f5f9;
   border-color: #cbd5e1;
   color: #0f172a;
+}
+:root[data-theme="light"] .proj-badge-icon.private svg,
+:root[data-theme="light"] .proj-badge-icon.guest svg {
+  stroke: #0f172a !important;
+  stroke-width: 2.6 !important;
+}
+:root[data-theme="light"] .proj-badge-icon.private svg circle,
+:root[data-theme="light"] .proj-badge-icon.guest svg circle {
+  fill: #0f172a !important;
 }
 :root[data-theme="light"] .proj-badge-icon.collab {
   background: #d1fae5;
@@ -1230,6 +1250,153 @@ h2 { margin: 4px 0 0; color: #e6ebf1; font: 700 15px "Segoe UI", Arial, sans-ser
 :root[data-theme="light"] .auth-modal-close:hover {
   color: #0f172a;
   background: #f1f5f9;
+}
+
+/* ── Guest Notice Board & Inline SVG Lock ─────────────────── */
+.inline-lock-svg {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: -2.5px;
+  margin-right: 4px;
+}
+.inline-lock-svg svg {
+  width: 14px;
+  height: 14px;
+}
+
+.guest-notice-card {
+  width: 440px;
+  text-align: center;
+  padding: 28px 24px 22px 24px;
+  position: relative;
+}
+.guest-notice-card .auth-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+}
+.guest-notice-icon-box {
+  margin: 0 auto 16px auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 66px;
+  height: 66px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  color: #f8fafc;
+}
+.guest-notice-title {
+  font-size: 17.5px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin: 0 0 10px 0;
+}
+.guest-notice-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #cbd5e1;
+  font-weight: 500;
+  margin-bottom: 22px;
+  text-align: center;
+}
+.guest-notice-desc b {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* Light Theme Enhancements for Modal & Typography */
+:root[data-theme="light"] .guest-notice-card {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+}
+:root[data-theme="light"] .guest-notice-icon-box {
+  background: #f1f5f9;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+:root[data-theme="light"] .guest-notice-icon-box svg {
+  stroke: #0f172a !important;
+  stroke-width: 2.6 !important;
+  color: #0f172a !important;
+}
+:root[data-theme="light"] .guest-notice-icon-box svg circle {
+  fill: #0f172a !important;
+}
+:root[data-theme="light"] .guest-notice-title {
+  color: #0f172a;
+  font-weight: 800; /* Chữ đậm hơn */
+  font-size: 18px;
+}
+:root[data-theme="light"] .guest-notice-desc {
+  color: #1e293b; /* Màu tối rõ nét, độ tương phản cao */
+  font-weight: 600; /* Chữ đậm hơn */
+}
+:root[data-theme="light"] .guest-notice-desc b {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+:root[data-theme="light"] .inline-lock-svg {
+  color: #0f172a;
+}
+:root[data-theme="light"] .inline-lock-svg svg {
+  stroke: #0f172a !important;
+  stroke-width: 2.6 !important;
+}
+:root[data-theme="light"] .inline-lock-svg svg circle {
+  fill: #0f172a !important;
+}
+
+/* Light Mode: Bolder text across all buttons, bars & status */
+:root[data-theme="light"] .button {
+  font-weight: 600;
+  color: #0f172a;
+}
+:root[data-theme="light"] .button-quiet {
+  color: #0f172a;
+  font-weight: 600;
+}
+:root[data-theme="light"] .button-quiet svg {
+  stroke-width: 2.4 !important;
+}
+:root[data-theme="light"] .button-secondary {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  font-weight: 600;
+}
+:root[data-theme="light"] .button-secondary:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+:root[data-theme="light"] .breadcrumb-title {
+  color: #0f172a;
+  font-weight: 700;
+}
+:root[data-theme="light"] .canvas-hint {
+  color: #0f172a;
+  font-weight: 600;
+}
+:root[data-theme="light"] .statusbar {
+  color: #0f172a;
+  font-weight: 600;
+}
+:root[data-theme="light"] .status-hint {
+  color: #334155;
+  font-weight: 600;
+}
+:root[data-theme="light"] .project-current-name {
+  color: #0f172a;
+  font-weight: 700;
+}
+:root[data-theme="light"] .member-item {
+  color: #0f172a;
+  font-weight: 600;
 }
 
 

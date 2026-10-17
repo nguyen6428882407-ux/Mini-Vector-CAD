@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 file(GLOB_RECURSE MINIVECTORCAD_CORE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/auth/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/canvas/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/commands/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/controller/*.cpp"
@@ -39,7 +40,7 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
-    foreach(test_name IN ITEMS test_shapes test_task9 test_undo_redo)
+    foreach(test_name IN ITEMS test_shapes test_task9 test_undo_redo test_auth)
         add_executable(${test_name} "tests/${test_name}.cpp")
         target_link_libraries(${test_name} PRIVATE MiniVectorCADCore)
         add_test(NAME ${test_name} COMMAND ${test_name})

@@ -2928,8 +2928,8 @@ if (textUnderlineBtn) {
 function updateThemeToggleUI() {
   const button = document.querySelector("#theme-toggle");
   if (!button) return;
-  const sunSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
-  const moonSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+  const sunSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+  const moonSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
   button.innerHTML = theme === "dark" ? `${sunSvg}<span>Sáng</span>` : `${moonSvg}<span>Tối</span>`;
   button.title = theme === "dark" ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối";
 }
@@ -3306,6 +3306,27 @@ function scheduleCppSync() {
   backendSyncTimer = setTimeout(() => syncCppProject(false), 250);
 }
 
+// Tự động nhận diện URL máy chủ C++:
+// - Nếu truy cập trực tiếp qua server C++ (port 8766): dùng đường dẫn tương đối ""
+// - Nếu truy cập qua Live Server hoặc máy khác trong mạng: dùng IP của máy chủ :8766
+// - Nếu mở dạng file:/// : dùng 127.0.0.1:8766
+const API_BASE_URL = window.location.protocol.startsWith("http")
+  ? (window.location.port === "8766" ? "" : `${window.location.protocol}//${window.location.hostname}:8766`)
+  : "http://127.0.0.1:8766";
+
+let currentProjectId = localStorage.getItem("mini-vector-cad-current-project-id") || "proj_default";
+
+function getProjectApiUrl(id = currentProjectId) {
+  return `${API_BASE_URL}/api/project?id=` + encodeURIComponent(id || "proj_default");
+}
+
+function getAuthHeaders(extra = {}) {
+  return {
+    ...extra,
+    ...(authToken ? { "Authorization": `Bearer ${authToken}` } : {})
+  };
+}
+
 async function syncCppProject(reportStatus = true) {
   if (!backendConnected) return;
   if (backendSyncInProgress) {
@@ -3318,9 +3339,9 @@ async function syncCppProject(reportStatus = true) {
     backendSyncPending = false;
     const revision = projectRevision;
     try {
-      const response = await fetch("http://127.0.0.1:8766/api/project", {
+      const response = await fetch(getProjectApiUrl(), {
         method: "POST",
-        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        headers: getAuthHeaders({ "Content-Type": "text/plain;charset=UTF-8" }),
         body: serializeNativeProject()
       });
       if (!response.ok) throw new Error(`C++ backend trả về HTTP ${response.status}.`);
@@ -3351,9 +3372,9 @@ async function connectCppBackend() {
   try {
     if (hasPendingLocalChanges) {
       const revision = projectRevision;
-      const response = await fetch("http://127.0.0.1:8766/api/project", {
+      const response = await fetch(getProjectApiUrl(), {
         method: "POST",
-        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        headers: getAuthHeaders({ "Content-Type": "text/plain;charset=UTF-8" }),
         body: serializeNativeProject()
       });
       if (!response.ok) throw new Error(`C++ backend trả về HTTP ${response.status}.`);
@@ -3364,7 +3385,9 @@ async function connectCppBackend() {
       else scheduleCppSync();
     } else {
       const revision = projectRevision;
-      const response = await fetch("http://127.0.0.1:8766/api/project");
+      const response = await fetch(getProjectApiUrl(), {
+        headers: getAuthHeaders()
+      });
       if (!response.ok) throw new Error(`C++ backend trả về HTTP ${response.status}.`);
       const importedLayers = parseNativeProject(await response.text());
       if (hasPendingLocalChanges || revision !== projectRevision) {
@@ -3510,6 +3533,757 @@ if (breadcrumbRenameBtn) {
 }
 
 applyDocumentTitle(documentTitle, false);
+
+// ============================================================================
+// USER AUTHENTICATION & SESSION MANAGEMENT (C++ BACKEND)
+// ============================================================================
+let currentUser = null;
+let authToken = localStorage.getItem("mini-vector-cad-auth-token") || "";
+
+try {
+  const savedUser = localStorage.getItem("mini-vector-cad-user");
+  if (savedUser) currentUser = JSON.parse(savedUser);
+} catch (_) {}
+
+function showAuthMessage(elementId, message, isSuccess = false) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  el.textContent = message;
+  el.className = `auth-msg ${isSuccess ? "success" : "error"}`;
+  el.hidden = false;
+}
+
+function hideAuthMessage(elementId) {
+  const el = document.getElementById(elementId);
+  if (el) el.hidden = true;
+}
+
+function openLoginModal() {
+  closeRegisterModal();
+  hideAuthMessage("login-msg");
+  const modal = document.getElementById("modal-login");
+  if (modal) {
+    modal.hidden = false;
+    setTimeout(() => document.getElementById("login-username")?.focus(), 50);
+  }
+}
+
+function closeLoginModal() {
+  const modal = document.getElementById("modal-login");
+  if (modal) modal.hidden = true;
+}
+
+function openRegisterModal() {
+  closeLoginModal();
+  hideAuthMessage("register-msg");
+  const modal = document.getElementById("modal-register");
+  if (modal) {
+    modal.hidden = false;
+    setTimeout(() => document.getElementById("register-fullname")?.focus(), 50);
+  }
+}
+
+function closeRegisterModal() {
+  const modal = document.getElementById("modal-register");
+  if (modal) modal.hidden = true;
+}
+
+function renderUserAuthSection() {
+  const container = document.getElementById("user-auth-section");
+  if (!container) return;
+
+  if (currentUser) {
+    const displayName = currentUser.fullName || currentUser.username;
+    const initial = displayName.charAt(0).toUpperCase();
+    container.innerHTML = `
+      <div class="user-profile-badge" id="btn-user-profile" title="Xem tài khoản: ${displayName}">
+        <span class="user-avatar">${initial}</span>
+        <span>${displayName}</span>
+        <span style="font-size: 8px; opacity: 0.7;">▼</span>
+      </div>
+      <div class="user-dropdown-board" id="user-dropdown-board" hidden>
+        <div class="user-dropdown-header">
+          <div class="user-dropdown-name">${displayName}</div>
+          <div class="user-dropdown-username">@${currentUser.username}</div>
+          <div style="font-size: 10px; color: var(--muted); margin-top: 4px;">Tạo: ${currentUser.createdAt || "Mới"}</div>
+        </div>
+        <button type="button" class="user-dropdown-logout-btn" id="btn-logout">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          <span>Đăng xuất</span>
+        </button>
+      </div>
+    `;
+
+    const badge = document.getElementById("btn-user-profile");
+    const dropdown = document.getElementById("user-dropdown-board");
+    const logoutBtn = document.getElementById("btn-logout");
+
+    badge?.addEventListener("click", e => {
+      e.stopPropagation();
+      dropdown.hidden = !dropdown.hidden;
+    });
+
+    logoutBtn?.addEventListener("click", handleLogout);
+  } else {
+    container.innerHTML = `
+      <button class="button button-quiet" id="btn-login-open" title="Đăng nhập">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span>Đăng nhập</span>
+      </button>
+      <button class="button button-secondary" id="btn-register-open" title="Đăng ký tài khoản">
+        <span>Đăng ký</span>
+      </button>
+    `;
+
+    document.getElementById("btn-login-open")?.addEventListener("click", openLoginModal);
+    document.getElementById("btn-register-open")?.addEventListener("click", openRegisterModal);
+  }
+}
+
+async function checkAuthSession() {
+  if (!authToken) {
+    currentUser = null;
+    localStorage.removeItem("mini-vector-cad-user");
+    renderUserAuthSection();
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/me`, {
+      headers: { "Authorization": `Bearer ${authToken}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.user) {
+        currentUser = data.user;
+        localStorage.setItem("mini-vector-cad-user", JSON.stringify(currentUser));
+      }
+    } else {
+      authToken = "";
+      currentUser = null;
+      localStorage.removeItem("mini-vector-cad-auth-token");
+      localStorage.removeItem("mini-vector-cad-user");
+    }
+  } catch (_) {
+    // If backend is offline, keep cached user
+  }
+  renderUserAuthSection();
+}
+
+async function handleLoginSubmit(event) {
+  event.preventDefault();
+  const username = document.getElementById("login-username")?.value.trim() || "";
+  const password = document.getElementById("login-password")?.value || "";
+  const submitBtn = document.getElementById("btn-login-submit");
+
+  if (!username || !password) {
+    showAuthMessage("login-msg", "Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.");
+    return;
+  }
+
+  hideAuthMessage("login-msg");
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      authToken = data.token;
+      currentUser = data.user;
+      localStorage.setItem("mini-vector-cad-auth-token", authToken);
+      localStorage.setItem("mini-vector-cad-user", JSON.stringify(currentUser));
+      closeLoginModal();
+      renderUserAuthSection();
+      setStatus(`Chào mừng bạn quay lại, ${currentUser.fullName || currentUser.username}!`);
+    } else {
+      showAuthMessage("login-msg", data.message || "Tên đăng nhập hoặc mật khẩu không chính xác.");
+    }
+  } catch (err) {
+    const localUser = JSON.parse(localStorage.getItem("mini-vector-cad-user") || "null");
+    if (localUser && localUser.username === username) {
+      authToken = "offline-token-" + Date.now();
+      currentUser = localUser;
+      localStorage.setItem("mini-vector-cad-auth-token", authToken);
+      closeLoginModal();
+      renderUserAuthSection();
+      setStatus(`Đăng nhập thành công (chế độ dự phòng)! Chào mừng ${currentUser.fullName || currentUser.username}.`);
+    } else {
+      showAuthMessage("login-msg", "Không thể kết nối đến C++ backend. Vui lòng chạy MiniVectorCADServer.exe để đăng nhập.");
+    }
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+async function handleRegisterSubmit(event) {
+  event.preventDefault();
+  const fullName = document.getElementById("register-fullname")?.value.trim() || "";
+  const username = document.getElementById("register-username")?.value.trim() || "";
+  const password = document.getElementById("register-password")?.value || "";
+  const confirmPassword = document.getElementById("register-confirm-password")?.value || "";
+  const submitBtn = document.getElementById("btn-register-submit");
+
+  if (!username || !password) {
+    showAuthMessage("register-msg", "Vui lòng nhập tên đăng nhập và mật khẩu.");
+    return;
+  }
+  if (password.length < 6) {
+    showAuthMessage("register-msg", "Mật khẩu phải có ít nhất 6 ký tự.");
+    return;
+  }
+  if (password !== confirmPassword) {
+    showAuthMessage("register-msg", "Mật khẩu nhập lại không khớp!");
+    return;
+  }
+
+  hideAuthMessage("register-msg");
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password, fullName })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      authToken = data.token;
+      currentUser = data.user;
+      localStorage.setItem("mini-vector-cad-auth-token", authToken);
+      localStorage.setItem("mini-vector-cad-user", JSON.stringify(currentUser));
+      closeRegisterModal();
+      renderUserAuthSection();
+      setStatus(`Đăng ký thành công! Chào mừng ${currentUser.fullName || currentUser.username}.`);
+    } else {
+      showAuthMessage("register-msg", data.message || "Đăng ký thất bại. Vui lòng thử lại.");
+    }
+  } catch (err) {
+    // Chế độ dự phòng tự động nếu backend C++ chưa khởi động
+    const fallbackUser = {
+      username,
+      fullName: fullName || username,
+      createdAt: new Date().toLocaleString()
+    };
+    authToken = "offline-token-" + Date.now();
+    currentUser = fallbackUser;
+    localStorage.setItem("mini-vector-cad-auth-token", authToken);
+    localStorage.setItem("mini-vector-cad-user", JSON.stringify(currentUser));
+    closeRegisterModal();
+    renderUserAuthSection();
+    setStatus(`Đăng ký tài khoản thành công! Chào mừng ${currentUser.fullName}.`);
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+async function handleLogout() {
+  if (authToken) {
+    try {
+      await fetch("http://127.0.0.1:8766/api/logout", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${authToken}` }
+      });
+    } catch (_) {}
+  }
+  authToken = "";
+  currentUser = null;
+  localStorage.removeItem("mini-vector-cad-auth-token");
+  localStorage.removeItem("mini-vector-cad-user");
+  renderUserAuthSection();
+  setStatus("Đã đăng xuất tài khoản.");
+}
+
+// Global modal events
+document.getElementById("login-modal-close")?.addEventListener("click", closeLoginModal);
+document.getElementById("register-modal-close")?.addEventListener("click", closeRegisterModal);
+document.getElementById("link-to-register")?.addEventListener("click", e => { e.preventDefault(); openRegisterModal(); });
+document.getElementById("link-to-login")?.addEventListener("click", e => { e.preventDefault(); openLoginModal(); });
+document.getElementById("form-login")?.addEventListener("submit", handleLoginSubmit);
+document.getElementById("form-register")?.addEventListener("submit", handleRegisterSubmit);
+
+document.addEventListener("click", event => {
+  const dropdown = document.getElementById("user-dropdown-board");
+  const profileBadge = document.getElementById("btn-user-profile");
+  if (dropdown && !dropdown.hidden && !profileBadge?.contains(event.target) && !dropdown.contains(event.target)) {
+    dropdown.hidden = true;
+  }
+  const projMenu = document.getElementById("project-dropdown-menu");
+  const projBtn = document.getElementById("project-picker-btn");
+  if (projMenu && !projMenu.hidden && !projBtn?.contains(event.target) && !projMenu.contains(event.target)) {
+    projMenu.hidden = true;
+  }
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    closeLoginModal();
+    closeRegisterModal();
+    const dropdown = document.getElementById("user-dropdown-board");
+    if (dropdown) dropdown.hidden = true;
+    const projMenu = document.getElementById("project-dropdown-menu");
+    if (projMenu) projMenu.hidden = true;
+  }
+});
+
+// Initialize Auth
+checkAuthSession();
+
+// ============================================================================
+// MULTI-USER COLLABORATION & PROJECT MANAGEMENT
+// ============================================================================
+let userProjects = [];
+let collabPollTimer = null;
+
+function getNextProjectNumber() {
+  let maxNum = 0;
+  userProjects.forEach(p => {
+    const match = p.name.match(/Dự án\s*(\d+)/i);
+    if (match) {
+      const n = parseInt(match[1], 10);
+      if (n > maxNum) maxNum = n;
+    }
+  });
+  if (maxNum === 0) {
+    return Math.max(1, userProjects.length + 1);
+  }
+  return maxNum + 1;
+}
+
+async function openInviteModal() {
+  await loadProjectsList();
+  const currentOwner = currentUser ? currentUser.username : "hethong";
+  const currentProj = userProjects.find(p => p.id === currentProjectId) || {
+    id: currentProjectId,
+    name: "Dự án 1",
+    owner: currentOwner,
+    members: [],
+    isOwner: true
+  };
+
+  const nameEl = document.getElementById("invite-target-project-name");
+  if (nameEl) nameEl.textContent = currentProj.name;
+
+  hideAuthMessage("invite-msg");
+  renderMembersList(currentProj);
+
+  const modal = document.getElementById("modal-invite");
+  if (modal) {
+    modal.hidden = false;
+    setTimeout(() => document.getElementById("invite-username")?.focus(), 50);
+  }
+}
+
+function closeInviteModal() {
+  const modal = document.getElementById("modal-invite");
+  if (modal) modal.hidden = true;
+}
+
+function openCreateProjectModal() {
+  hideAuthMessage("create-project-msg");
+  const modal = document.getElementById("modal-create-project");
+  if (modal) {
+    modal.hidden = false;
+    const input = document.getElementById("create-project-name");
+    if (input) {
+      input.value = `Dự án ${getNextProjectNumber()}`;
+      setTimeout(() => {
+        input.focus();
+        input.select();
+      }, 50);
+    }
+  }
+}
+
+function closeCreateProjectModal() {
+  const modal = document.getElementById("modal-create-project");
+  if (modal) modal.hidden = true;
+}
+
+const SVG_ICON_OWNER = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/><circle cx="5" cy="4" r="1.5" fill="currentColor"/><circle cx="12" cy="4" r="1.5" fill="currentColor"/><circle cx="19" cy="4" r="1.5" fill="currentColor"/><line x1="5" y1="20" x2="19" y2="20" stroke-width="2.2"/></svg>`;
+
+const SVG_ICON_COLLAB = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="11" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+
+function renderMembersList(project) {
+  const container = document.getElementById("project-members-list");
+  if (!container) return;
+
+  const rawOwner = project.owner || "hethong";
+  const displayOwner = (rawOwner === "hethong")
+    ? (currentUser ? currentUser.username : "Hệ thống")
+    : rawOwner;
+  const isCurrentOwner = currentUser
+    ? (currentUser.username === rawOwner || rawOwner === "hethong")
+    : true;
+
+  let html = `
+    <div class="member-item">
+      <div class="member-info">
+        <span class="proj-badge-icon owner" title="Chủ dự án">${SVG_ICON_OWNER}</span>
+        <b class="member-name">${displayOwner}</b>
+      </div>
+      <span class="member-role-badge owner">Chủ dự án</span>
+    </div>
+  `;
+
+  if (project.members && project.members.length > 0) {
+    project.members.forEach(member => {
+      html += `
+        <div class="member-item">
+          <div class="member-info">
+            <span class="proj-badge-icon collab" title="Thành viên vẽ chung">${SVG_ICON_COLLAB}</span>
+            <span class="member-name">${member}</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="member-role-badge member">Thành viên vẽ chung</span>
+            ${isCurrentOwner ? `<button type="button" class="member-remove-btn" data-kick="${member}" title="Xóa thành viên">✕ Xóa</button>` : ""}
+          </div>
+        </div>
+      `;
+    });
+  } else {
+    html += `
+      <div style="font-size: 11px; color: var(--muted); padding: 6px 0; font-style: italic;">
+        Chưa có thành viên nào khác. Hãy nhập username ở trên để mời bạn cùng vẽ!
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+
+  container.querySelectorAll(".member-remove-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const targetUser = btn.dataset.kick;
+      if (confirm(`Bạn có chắc muốn xóa thành viên "${targetUser}" khỏi dự án này?`)) {
+        handleRemoveMember(targetUser);
+      }
+    });
+  });
+}
+
+async function loadProjectsList() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/projects`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.success && Array.isArray(data.projects)) {
+      userProjects = data.projects;
+      updateProjectSelector();
+    }
+  } catch (_) {}
+}
+
+function updateProjectSelector() {
+  const select = document.getElementById("project-select");
+  const currentIconEl = document.getElementById("project-current-icon");
+  const currentNameEl = document.getElementById("project-current-name");
+  const dropdownList = document.getElementById("project-dropdown-list");
+  const dropdownCount = document.getElementById("project-dropdown-count");
+
+  if (!userProjects.length) {
+    const defaultOwner = currentUser ? currentUser.username : "hethong";
+    userProjects = [{ id: "proj_default", name: "Dự án 1", owner: defaultOwner, isOwner: true, members: [] }];
+  }
+
+  if (userProjects.some(p => p.id === currentProjectId)) {
+    // Current is valid
+  } else if (userProjects.length > 0) {
+    currentProjectId = userProjects[0].id;
+    localStorage.setItem("mini-vector-cad-current-project-id", currentProjectId);
+  }
+
+  const currentProj = userProjects.find(p => p.id === currentProjectId) || userProjects[0];
+
+  // Update hidden select for backward-compatibility
+  if (select) {
+    select.innerHTML = "";
+    userProjects.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      const rolePrefix = p.isOwner ? "[Chủ]" : "[Cộng tác]";
+      opt.textContent = `${rolePrefix} ${p.name}`;
+      select.appendChild(opt);
+    });
+    select.value = currentProj.id;
+  }
+
+  // Update topbar button
+  if (currentIconEl) {
+    currentIconEl.className = `project-current-icon ${currentProj.isOwner ? "owner" : "collab"}`;
+    currentIconEl.innerHTML = currentProj.isOwner ? SVG_ICON_OWNER : SVG_ICON_COLLAB;
+  }
+  if (currentNameEl) {
+    currentNameEl.textContent = currentProj.name;
+    currentNameEl.title = currentProj.name;
+  }
+
+  // Update dropdown list items
+  if (dropdownList) {
+    dropdownList.innerHTML = "";
+    userProjects.forEach(p => {
+      const isOwner = p.isOwner;
+      const ownerDisplay = (p.owner === "hethong" || !p.owner) ? "Hệ thống" : `@${p.owner}`;
+      let roleDesc = "";
+      if (isOwner) {
+        roleDesc = currentUser ? `Chủ dự án: @${currentUser.username}` : "Chủ dự án: Hệ thống";
+      } else {
+        roleDesc = `Được chia sẻ bởi ${ownerDisplay}`;
+      }
+
+      const itemBtn = document.createElement("button");
+      itemBtn.type = "button";
+      itemBtn.className = `project-dropdown-item ${p.id === currentProjectId ? "active" : ""}`;
+      itemBtn.innerHTML = `
+        <div class="project-dropdown-item-left">
+          <span class="proj-badge-icon ${isOwner ? "owner" : "collab"}">
+            ${isOwner ? SVG_ICON_OWNER : SVG_ICON_COLLAB}
+          </span>
+          <div class="project-dropdown-item-info">
+            <div class="project-dropdown-item-name">${p.name}</div>
+            <div class="project-dropdown-item-role">${roleDesc}</div>
+          </div>
+        </div>
+        ${p.id === currentProjectId ? `
+          <svg class="project-dropdown-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        ` : ""}
+      `;
+      itemBtn.addEventListener("click", () => {
+        const menu = document.getElementById("project-dropdown-menu");
+        if (menu) menu.hidden = true;
+        switchProject(p.id);
+      });
+      dropdownList.appendChild(itemBtn);
+    });
+  }
+
+  if (dropdownCount) {
+    dropdownCount.textContent = userProjects.length;
+  }
+
+  // Update member count badge
+  const badge = document.getElementById("member-count-badge");
+  if (badge) {
+    const count = currentProj ? (currentProj.members?.length || 0) : 0;
+    if (count > 0) {
+      badge.textContent = `+${count}`;
+      badge.hidden = false;
+    } else {
+      badge.hidden = true;
+    }
+  }
+}
+
+async function switchProject(projectId) {
+  if (currentProjectId === projectId) return;
+  currentProjectId = projectId;
+  localStorage.setItem("mini-vector-cad-current-project-id", projectId);
+
+  const proj = userProjects.find(p => p.id === projectId);
+  if (proj) {
+    applyDocumentTitle(proj.name, false);
+  }
+
+  updateProjectSelector();
+  setStatus(`Đang tải dự án: ${proj ? proj.name : projectId}...`);
+
+  try {
+    const res = await fetch(getProjectApiUrl(projectId), {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const importedLayers = parseNativeProject(text);
+    layers.splice(0, layers.length, ...importedLayers);
+    activeLayer = 0;
+    selected = null;
+    selectedItems = [];
+    hasPendingLocalChanges = false;
+    render();
+    setStatus(`Đã mở dự án "${proj ? proj.name : projectId}" thành công!`);
+  } catch (err) {
+    setStatus(`Lỗi khi mở dự án: ${err.message}`);
+  }
+}
+
+async function handleInviteSubmit(event) {
+  event.preventDefault();
+  const input = document.getElementById("invite-username");
+  const targetUsername = input?.value.trim() || "";
+  const submitBtn = document.getElementById("btn-invite-submit");
+
+  if (!targetUsername) {
+    showAuthMessage("invite-msg", "Vui lòng nhập tên đăng nhập muốn mời.");
+    return;
+  }
+
+  hideAuthMessage("invite-msg");
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/projects/invite`, {
+      method: "POST",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ projectId: currentProjectId, username: targetUsername })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showAuthMessage("invite-msg", data.message || `Đã mời "${targetUsername}" thành công!`, true);
+      if (input) input.value = "";
+      await loadProjectsList();
+      const proj = userProjects.find(p => p.id === currentProjectId);
+      if (proj) renderMembersList(proj);
+      setStatus(`Đã mời @${targetUsername} vào cùng vẽ!`);
+    } else {
+      showAuthMessage("invite-msg", data.message || "Không thể mời thành viên này.");
+    }
+  } catch (err) {
+    showAuthMessage("invite-msg", "Lỗi kết nối C++ backend: " + err.message);
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+async function handleRemoveMember(targetUsername) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/projects/remove_member`, {
+      method: "POST",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ projectId: currentProjectId, username: targetUsername })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      await loadProjectsList();
+      const proj = userProjects.find(p => p.id === currentProjectId);
+      if (proj) renderMembersList(proj);
+      setStatus(`Đã xóa @${targetUsername} khỏi dự án.`);
+    } else {
+      alert(data.message || "Không thể xóa thành viên.");
+    }
+  } catch (err) {
+    alert("Lỗi kết nối C++: " + err.message);
+  }
+}
+
+async function handleCreateProjectSubmit(event) {
+  event.preventDefault();
+  const input = document.getElementById("create-project-name");
+  let name = input?.value.trim() || "";
+  if (!name) {
+    name = `Dự án ${getNextProjectNumber()}`;
+  }
+  const submitBtn = document.getElementById("btn-create-project-submit");
+
+  hideAuthMessage("create-project-msg");
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/projects`, {
+      method: "POST",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if (res.ok && data.success && data.project) {
+      closeCreateProjectModal();
+      await loadProjectsList();
+      await switchProject(data.project.id);
+      setStatus(`Đã tạo dự án "${name}" thành công! Bây giờ bạn có thể bấm "Mời vẽ chung" để mời bạn bè.`);
+    } else {
+      showAuthMessage("create-project-msg", data.message || "Tạo dự án thất bại.");
+    }
+  } catch (err) {
+    showAuthMessage("create-project-msg", "Lỗi kết nối C++ backend: " + err.message);
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+// Real-time collaborative polling (tự động cập nhật nét vẽ của đồng đội)
+function startCollaborationPolling() {
+  if (collabPollTimer) clearInterval(collabPollTimer);
+  let pollCounter = 0;
+  collabPollTimer = setInterval(async () => {
+    // Định kỳ mỗi 3 lần poll (~4.5s) tự làm mới danh sách dự án và thành viên
+    pollCounter++;
+    if (pollCounter % 3 === 0 && !pointerAction) {
+      loadProjectsList();
+    }
+
+    // Chỉ đồng bộ khi không đang vẽ kéo chuột và không có thay đổi nội bộ chưa lưu
+    if (pointerAction || hasPendingLocalChanges || !backendConnected) return;
+    try {
+      const res = await fetch(getProjectApiUrl(), { headers: getAuthHeaders() });
+      if (!res.ok) return;
+      const remoteText = await res.text();
+      const localText = serializeNativeProject();
+      if (remoteText.trim() !== localText.trim()) {
+        const importedLayers = parseNativeProject(remoteText);
+        layers.splice(0, layers.length, ...importedLayers);
+        if (activeLayer >= layers.length) {
+          activeLayer = Math.max(0, layers.length - 1);
+        }
+        render();
+      }
+    } catch (_) {}
+  }, 1500);
+}
+
+// Bind collaboration events
+document.getElementById("btn-invite-open")?.addEventListener("click", openInviteModal);
+document.getElementById("invite-modal-close")?.addEventListener("click", closeInviteModal);
+document.getElementById("form-invite")?.addEventListener("submit", handleInviteSubmit);
+
+document.getElementById("btn-create-project-open")?.addEventListener("click", openCreateProjectModal);
+document.getElementById("create-project-modal-close")?.addEventListener("click", closeCreateProjectModal);
+document.getElementById("form-create-project")?.addEventListener("submit", handleCreateProjectSubmit);
+
+document.getElementById("project-select")?.addEventListener("change", e => {
+  switchProject(e.target.value);
+});
+
+document.getElementById("project-picker-btn")?.addEventListener("click", async e => {
+  e.stopPropagation();
+  const menu = document.getElementById("project-dropdown-menu");
+  if (menu) {
+    const isOpening = menu.hidden;
+    menu.hidden = !menu.hidden;
+    if (isOpening) {
+      await loadProjectsList();
+    }
+  }
+});
+
+document.getElementById("btn-dropdown-create-project")?.addEventListener("click", () => {
+  const menu = document.getElementById("project-dropdown-menu");
+  if (menu) menu.hidden = true;
+  openCreateProjectModal();
+});
+
+// Hook into auth login to reload projects
+const oldRenderUserAuthSection = renderUserAuthSection;
+renderUserAuthSection = function() {
+  oldRenderUserAuthSection();
+  loadProjectsList();
+};
+
+// Initialize projects & collaborative real-time polling
+loadProjectsList();
+startCollaborationPolling();
+
+
 
 
 

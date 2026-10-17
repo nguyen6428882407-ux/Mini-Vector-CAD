@@ -1,0 +1,3 @@
+# MINI_VECTOR_CAD_PROJECTS_V1
+# id	name	owner	members	createdAt	updatedAt	revision
+proj_default	Dự án 1	hello	hello1	2026-10-17 15:36:50	2026-10-17 16:13:16	1

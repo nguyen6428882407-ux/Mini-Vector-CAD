@@ -3331,6 +3331,17 @@ function getAuthHeaders(extra = {}) {
 }
 
 async function syncCppProject(reportStatus = true) {
+  // 1. TÀI KHOẢN KHÁCH: Vẽ riêng cục bộ trên trình duyệt, không gửi lên C++ server
+  if (!currentUser || !authToken) {
+    try {
+      localStorage.setItem("mini-vector-cad-guest-drawing", serializeNativeProject());
+      hasPendingLocalChanges = false;
+      if (reportStatus) setStatus("🔒 Bản vẽ riêng của Khách đã lưu cục bộ.");
+    } catch (_) {}
+    return;
+  }
+
+  // 2. TÀI KHOẢN ĐÃ ĐĂNG NHẬP: Đồng bộ lên C++ server
   if (!backendConnected) return;
   if (backendSyncInProgress) {
     backendSyncPending = true;
@@ -3359,7 +3370,11 @@ async function syncCppProject(reportStatus = true) {
     }
   } while (backendSyncPending && succeeded);
   backendSyncInProgress = false;
-  if (reportStatus && succeeded) setStatus("Đã đồng bộ bản vẽ với C++");
+  if (reportStatus && succeeded) {
+    const curProj = userProjects.find(p => p.id === currentProjectId);
+    const isCollab = curProj && curProj.members && curProj.members.length > 0;
+    setStatus(isCollab ? "Đã đồng bộ bản vẽ chung với C++" : "Đã lưu bản vẽ riêng lên C++ Cloud");
+  }
 }
 
 function scheduleCppReconnect() {
@@ -3371,6 +3386,27 @@ function scheduleCppReconnect() {
 }
 
 async function connectCppBackend() {
+  if (!currentUser || !authToken) {
+    // Khách: nạp từ localStorage của khách nếu có
+    const savedGuest = localStorage.getItem("mini-vector-cad-guest-drawing");
+    if (savedGuest) {
+      try {
+        const importedLayers = parseNativeProject(savedGuest);
+        if (importedLayers && importedLayers.length > 0) {
+          layers.splice(0, layers.length, ...importedLayers);
+          activeLayer = 0;
+          selected = null;
+          render();
+        }
+      } catch (_) {}
+    }
+    backendConnected = true;
+    const statusEl = document.querySelector("#backend-status");
+    if (statusEl) statusEl.textContent = "Chế độ Khách · Bản vẽ riêng (Cục bộ)";
+    setStatus("🔒 Bạn đang ở Chế độ Khách (Bản vẽ riêng, không chia sẻ với ai)");
+    return;
+  }
+
   if (backendConnected) return;
   try {
     if (hasPendingLocalChanges) {
@@ -3410,7 +3446,7 @@ async function connectCppBackend() {
     setStatus("Đã kết nối C++ — thay đổi sẽ tự động đồng bộ");
   } catch (error) {
     updateBackendStatus(false);
-    setStatus(`Không kết nối được C++: ${error.message} (chạy MiniVectorCADServer.exe để tự kết nối)`);
+    setStatus(`Không kết nối được C++: ${error.message}`);
     scheduleCppReconnect();
   }
 }
@@ -3706,7 +3742,9 @@ async function handleLoginSubmit(event) {
       localStorage.setItem("mini-vector-cad-auth-token", authToken);
       localStorage.setItem("mini-vector-cad-user", JSON.stringify(currentUser));
       closeLoginModal();
+      backendConnected = false;
       renderUserAuthSection();
+      connectCppBackend();
       setStatus(`Chào mừng bạn quay lại, ${currentUser.fullName || currentUser.username}!`);
     } else {
       showAuthMessage("login-msg", data.message || "Tên đăng nhập hoặc mật khẩu không chính xác.");
@@ -3718,7 +3756,9 @@ async function handleLoginSubmit(event) {
       currentUser = localUser;
       localStorage.setItem("mini-vector-cad-auth-token", authToken);
       closeLoginModal();
+      backendConnected = false;
       renderUserAuthSection();
+      connectCppBackend();
       setStatus(`Đăng nhập thành công (chế độ dự phòng)! Chào mừng ${currentUser.fullName || currentUser.username}.`);
     } else {
       showAuthMessage("login-msg", "Không thể kết nối đến C++ backend. Vui lòng chạy MiniVectorCADServer.exe để đăng nhập.");
@@ -3765,7 +3805,9 @@ async function handleRegisterSubmit(event) {
       localStorage.setItem("mini-vector-cad-auth-token", authToken);
       localStorage.setItem("mini-vector-cad-user", JSON.stringify(currentUser));
       closeRegisterModal();
+      backendConnected = false;
       renderUserAuthSection();
+      connectCppBackend();
       setStatus(`Đăng ký thành công! Chào mừng ${currentUser.fullName || currentUser.username}.`);
     } else {
       showAuthMessage("register-msg", data.message || "Đăng ký thất bại. Vui lòng thử lại.");
@@ -3782,7 +3824,9 @@ async function handleRegisterSubmit(event) {
     localStorage.setItem("mini-vector-cad-auth-token", authToken);
     localStorage.setItem("mini-vector-cad-user", JSON.stringify(currentUser));
     closeRegisterModal();
+    backendConnected = false;
     renderUserAuthSection();
+    connectCppBackend();
     setStatus(`Đăng ký tài khoản thành công! Chào mừng ${currentUser.fullName}.`);
   } finally {
     if (submitBtn) submitBtn.disabled = false;
@@ -3802,8 +3846,10 @@ async function handleLogout() {
   currentUser = null;
   localStorage.removeItem("mini-vector-cad-auth-token");
   localStorage.removeItem("mini-vector-cad-user");
+  backendConnected = false;
   renderUserAuthSection();
-  setStatus("Đã đăng xuất tài khoản.");
+  connectCppBackend();
+  setStatus("Đã đăng xuất. Bạn đang ở Chế độ Khách (Bản vẽ riêng).");
 }
 
 // Global modal events
@@ -3863,15 +3909,15 @@ function getNextProjectNumber() {
 }
 
 async function openInviteModal() {
+  if (!currentUser || !authToken) {
+    alert("🔒 Bạn đang ở Chế độ Khách (Bản vẽ riêng cục bộ trên máy này).\n\nĐể mời bạn bè vẽ chung hoặc lưu trữ lên Cloud, vui lòng Đăng ký hoặc Đăng nhập!");
+    openLoginModal();
+    return;
+  }
+
   await loadProjectsList();
-  const currentOwner = currentUser ? currentUser.username : "hethong";
-  const currentProj = userProjects.find(p => p.id === currentProjectId) || {
-    id: currentProjectId,
-    name: "Dự án 1",
-    owner: currentOwner,
-    members: [],
-    isOwner: true
-  };
+  const currentProj = userProjects.find(p => p.id === currentProjectId) || userProjects[0];
+  if (!currentProj) return;
 
   const nameEl = document.getElementById("invite-target-project-name");
   if (nameEl) nameEl.textContent = currentProj.name;
@@ -3892,6 +3938,11 @@ function closeInviteModal() {
 }
 
 function openCreateProjectModal() {
+  if (!currentUser || !authToken) {
+    alert("🔒 Bạn cần Đăng ký hoặc Đăng nhập tài khoản để tạo và lưu dự án trên Cloud!");
+    openLoginModal();
+    return;
+  }
   hideAuthMessage("create-project-msg");
   const modal = document.getElementById("modal-create-project");
   if (modal) {
@@ -3916,35 +3967,40 @@ const SVG_ICON_OWNER = `<svg width="15" height="15" viewBox="0 0 24 24" fill="no
 
 const SVG_ICON_COLLAB = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="11" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
 
+const SVG_ICON_PRIVATE = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+
 function renderMembersList(project) {
   const container = document.getElementById("project-members-list");
   if (!container) return;
 
-  const rawOwner = project.owner || "hethong";
-  const displayOwner = (rawOwner === "hethong")
-    ? (currentUser ? currentUser.username : "Hệ thống")
-    : rawOwner;
-  const isCurrentOwner = currentUser
-    ? (currentUser.username === rawOwner || rawOwner === "hethong")
-    : true;
+  const rawOwner = project.owner || (currentUser ? currentUser.username : "Bạn");
+  const displayOwner = rawOwner;
+  const isCurrentOwner = currentUser && (currentUser.username === rawOwner);
+  const hasCollab = project.members && project.members.length > 0;
 
   let html = `
+    <div style="font-size: 12px; margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: ${hasCollab ? "rgba(16, 185, 129, 0.12)" : "rgba(245, 158, 11, 0.12)"}; border: 1px solid ${hasCollab ? "rgba(16, 185, 129, 0.3)" : "rgba(245, 158, 11, 0.3)"}; color: ${hasCollab ? "#10b981" : "#f59e0b"};">
+      ${hasCollab
+        ? `<b>👥 Chế độ: Đang vẽ chung</b> (${project.members.length + 1} người đang có quyền vẽ)`
+        : `<b>🔒 Chế độ: Bản vẽ riêng</b> (Chỉ một mình bạn có quyền xem & vẽ. Hãy mời bạn bè bên dưới để chuyển sang Vẽ chung!)`
+      }
+    </div>
     <div class="member-item">
       <div class="member-info">
         <span class="proj-badge-icon owner" title="Chủ dự án">${SVG_ICON_OWNER}</span>
-        <b class="member-name">${displayOwner}</b>
+        <b class="member-name">@${displayOwner}</b>
       </div>
       <span class="member-role-badge owner">Chủ dự án</span>
     </div>
   `;
 
-  if (project.members && project.members.length > 0) {
+  if (hasCollab) {
     project.members.forEach(member => {
       html += `
         <div class="member-item">
           <div class="member-info">
             <span class="proj-badge-icon collab" title="Thành viên vẽ chung">${SVG_ICON_COLLAB}</span>
-            <span class="member-name">${member}</span>
+            <span class="member-name">@${member}</span>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
             <span class="member-role-badge member">Thành viên vẽ chung</span>
@@ -3955,8 +4011,8 @@ function renderMembersList(project) {
     });
   } else {
     html += `
-      <div style="font-size: 11px; color: var(--muted); padding: 6px 0; font-style: italic;">
-        Chưa có thành viên nào khác. Hãy nhập username ở trên để mời bạn cùng vẽ!
+      <div style="font-size: 11px; color: var(--muted); padding: 8px 0; font-style: italic;">
+        Chưa có thành viên nào khác. Bạn đang ở chế độ Bản vẽ riêng. Hãy nhập username bạn bè ở trên và bấm "Gửi lời mời" để vẽ chung!
       </div>
     `;
   }
@@ -3974,6 +4030,20 @@ function renderMembersList(project) {
 }
 
 async function loadProjectsList() {
+  if (!currentUser || !authToken) {
+    userProjects = [{
+      id: "guest_local",
+      name: "Bản vẽ riêng (Khách)",
+      owner: "Khách",
+      isOwner: true,
+      members: [],
+      isGuest: true
+    }];
+    currentProjectId = "guest_local";
+    updateProjectSelector();
+    return;
+  }
+
   try {
     const res = await fetch(`${API_BASE_URL}/api/projects`, {
       headers: getAuthHeaders()
@@ -3982,6 +4052,19 @@ async function loadProjectsList() {
     const data = await res.json();
     if (data.success && Array.isArray(data.projects)) {
       userProjects = data.projects;
+      if (userProjects.length === 0) {
+        userProjects = [{
+          id: "proj_default",
+          name: "Bản vẽ cá nhân 1",
+          owner: currentUser.username,
+          isOwner: true,
+          members: []
+        }];
+      }
+      if (currentProjectId === "guest_local" || !userProjects.some(p => p.id === currentProjectId)) {
+        currentProjectId = userProjects[0].id;
+        localStorage.setItem("mini-vector-cad-current-project-id", currentProjectId);
+      }
       updateProjectSelector();
     }
   } catch (_) {}
@@ -3995,18 +4078,21 @@ function updateProjectSelector() {
   const dropdownCount = document.getElementById("project-dropdown-count");
 
   if (!userProjects.length) {
-    const defaultOwner = currentUser ? currentUser.username : "hethong";
-    userProjects = [{ id: "proj_default", name: "Dự án 1", owner: defaultOwner, isOwner: true, members: [] }];
+    if (currentUser) {
+      userProjects = [{ id: "proj_default", name: "Bản vẽ cá nhân 1", owner: currentUser.username, isOwner: true, members: [] }];
+    } else {
+      userProjects = [{ id: "guest_local", name: "Bản vẽ riêng (Khách)", owner: "Khách", isOwner: true, members: [], isGuest: true }];
+    }
   }
 
-  if (userProjects.some(p => p.id === currentProjectId)) {
-    // Current is valid
-  } else if (userProjects.length > 0) {
+  if (!userProjects.some(p => p.id === currentProjectId)) {
     currentProjectId = userProjects[0].id;
     localStorage.setItem("mini-vector-cad-current-project-id", currentProjectId);
   }
 
   const currentProj = userProjects.find(p => p.id === currentProjectId) || userProjects[0];
+  const isGuestMode = !currentUser || Boolean(currentProj.isGuest);
+  const isCollabMode = !isGuestMode && Array.isArray(currentProj.members) && currentProj.members.length > 0;
 
   // Update hidden select for backward-compatibility
   if (select) {
@@ -4014,7 +4100,12 @@ function updateProjectSelector() {
     userProjects.forEach(p => {
       const opt = document.createElement("option");
       opt.value = p.id;
-      const rolePrefix = p.isOwner ? "[Chủ]" : "[Cộng tác]";
+      let rolePrefix = "[Bản vẽ riêng]";
+      if (p.isGuest) {
+        rolePrefix = "[Khách - Riêng]";
+      } else if (p.members && p.members.length > 0) {
+        rolePrefix = p.isOwner ? "[Chủ • Vẽ chung]" : "[Thành viên • Vẽ chung]";
+      }
       opt.textContent = `${rolePrefix} ${p.name}`;
       select.appendChild(opt);
     });
@@ -4023,8 +4114,19 @@ function updateProjectSelector() {
 
   // Update topbar button
   if (currentIconEl) {
-    currentIconEl.className = `project-current-icon ${currentProj.isOwner ? "owner" : "collab"}`;
-    currentIconEl.innerHTML = currentProj.isOwner ? SVG_ICON_OWNER : SVG_ICON_COLLAB;
+    if (isGuestMode) {
+      currentIconEl.className = "project-current-icon private guest";
+      currentIconEl.innerHTML = SVG_ICON_PRIVATE;
+      currentIconEl.title = "Bản vẽ riêng (Khách - Cục bộ trên máy)";
+    } else if (isCollabMode) {
+      currentIconEl.className = "project-current-icon collab";
+      currentIconEl.innerHTML = SVG_ICON_COLLAB;
+      currentIconEl.title = "Đang vẽ chung thời gian thực";
+    } else {
+      currentIconEl.className = "project-current-icon private";
+      currentIconEl.innerHTML = SVG_ICON_PRIVATE;
+      currentIconEl.title = "Bản vẽ riêng cá nhân (Chỉ mình bạn)";
+    }
   }
   if (currentNameEl) {
     currentNameEl.textContent = currentProj.name;
@@ -4035,13 +4137,29 @@ function updateProjectSelector() {
   if (dropdownList) {
     dropdownList.innerHTML = "";
     userProjects.forEach(p => {
+      const isGuest = Boolean(p.isGuest);
       const isOwner = p.isOwner;
-      const ownerDisplay = (p.owner === "hethong" || !p.owner) ? "Hệ thống" : `@${p.owner}`;
+      const hasCollab = Array.isArray(p.members) && p.members.length > 0;
+
+      let iconHtml = SVG_ICON_PRIVATE;
+      let badgeClass = "private";
       let roleDesc = "";
-      if (isOwner) {
-        roleDesc = currentUser ? `Chủ dự án: @${currentUser.username}` : "Chủ dự án: Hệ thống";
+
+      if (isGuest) {
+        iconHtml = SVG_ICON_PRIVATE;
+        badgeClass = "private guest";
+        roleDesc = "🔒 Bản vẽ riêng (Cục bộ trên máy này)";
+      } else if (hasCollab) {
+        iconHtml = SVG_ICON_COLLAB;
+        badgeClass = "collab";
+        const memberCount = (p.members ? p.members.length : 0) + 1;
+        roleDesc = isOwner
+          ? `👥 Đang vẽ chung (${memberCount} người)`
+          : `👥 Được mời bởi @${p.owner}`;
       } else {
-        roleDesc = `Được chia sẻ bởi ${ownerDisplay}`;
+        iconHtml = SVG_ICON_PRIVATE;
+        badgeClass = "private";
+        roleDesc = `🔒 Bản vẽ riêng Cloud (Chỉ mình bạn)`;
       }
 
       const itemBtn = document.createElement("button");
@@ -4049,8 +4167,8 @@ function updateProjectSelector() {
       itemBtn.className = `project-dropdown-item ${p.id === currentProjectId ? "active" : ""}`;
       itemBtn.innerHTML = `
         <div class="project-dropdown-item-left">
-          <span class="proj-badge-icon ${isOwner ? "owner" : "collab"}">
-            ${isOwner ? SVG_ICON_OWNER : SVG_ICON_COLLAB}
+          <span class="proj-badge-icon ${badgeClass}">
+            ${iconHtml}
           </span>
           <div class="project-dropdown-item-info">
             <div class="project-dropdown-item-name">${p.name}</div>
@@ -4079,10 +4197,11 @@ function updateProjectSelector() {
   // Update member count badge
   const badge = document.getElementById("member-count-badge");
   if (badge) {
-    const count = currentProj ? (currentProj.members?.length || 0) : 0;
-    if (count > 0) {
+    if (isCollabMode) {
+      const count = currentProj.members.length;
       badge.textContent = `+${count}`;
       badge.hidden = false;
+      badge.title = `Dự án vẽ chung với ${count} người khác`;
     } else {
       badge.hidden = true;
     }
@@ -4100,6 +4219,26 @@ async function switchProject(projectId) {
   }
 
   updateProjectSelector();
+
+  if (!currentUser || !authToken || (proj && proj.isGuest)) {
+    const savedGuest = localStorage.getItem("mini-vector-cad-guest-drawing");
+    if (savedGuest) {
+      try {
+        const importedLayers = parseNativeProject(savedGuest);
+        layers.splice(0, layers.length, ...importedLayers);
+      } catch (_) {}
+    } else {
+      layers.splice(0, layers.length, { id: 1, name: "Layer 1", visible: true, locked: false, items: [] });
+    }
+    activeLayer = 0;
+    selected = null;
+    selectedItems = [];
+    hasPendingLocalChanges = false;
+    render();
+    setStatus("🔒 Đang ở Chế độ Khách (Bản vẽ riêng, lưu trên máy).");
+    return;
+  }
+
   setStatus(`Đang tải dự án: ${proj ? proj.name : projectId}...`);
 
   try {
@@ -4115,7 +4254,8 @@ async function switchProject(projectId) {
     selectedItems = [];
     hasPendingLocalChanges = false;
     render();
-    setStatus(`Đã mở dự án "${proj ? proj.name : projectId}" thành công!`);
+    const isCollab = proj && Array.isArray(proj.members) && proj.members.length > 0;
+    setStatus(isCollab ? `👥 Đã mở dự án vẽ chung "${proj.name}"!` : `🔒 Đã mở bản vẽ riêng "${proj ? proj.name : projectId}"!`);
   } catch (err) {
     setStatus(`Lỗi khi mở dự án: ${err.message}`);
   }
@@ -4219,10 +4359,21 @@ function startCollaborationPolling() {
   if (collabPollTimer) clearInterval(collabPollTimer);
   let pollCounter = 0;
   collabPollTimer = setInterval(async () => {
-    // Định kỳ mỗi 3 lần poll (~4.5s) tự làm mới danh sách dự án và thành viên
+    // 1. Khách chưa đăng nhập: Không vẽ chung, không poll server
+    if (!currentUser || !authToken) return;
+
+    // 2. Định kỳ mỗi 3 lần poll (~4.5s) tự làm mới danh sách dự án (để cập nhật khi được ai đó mời)
     pollCounter++;
     if (pollCounter % 3 === 0 && !pointerAction) {
       loadProjectsList();
+    }
+
+    // 3. Kiểm tra dự án hiện tại: CHỈ VẼ CHUNG KHI CÓ THÀNH VIÊN ĐƯỢC MỜI (members.length > 0)
+    // Nếu không phải vẽ chung (bản vẽ riêng cá nhân): KHÔNG poll canvas từ server tránh đè nét!
+    const currentProj = userProjects.find(p => p.id === currentProjectId);
+    const isCollabMode = currentProj && Array.isArray(currentProj.members) && currentProj.members.length > 0;
+    if (!isCollabMode) {
+      return;
     }
 
     // Chỉ đồng bộ khi không đang vẽ kéo chuột và không có thay đổi nội bộ chưa lưu

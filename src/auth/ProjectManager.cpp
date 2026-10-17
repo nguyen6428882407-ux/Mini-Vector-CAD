@@ -195,27 +195,43 @@ std::vector<ProjectSummary> ProjectManager::getProjectsForUser(const std::string
     std::lock_guard<std::mutex> lock(mutex_);
     std::vector<ProjectSummary> res;
 
-    // Nếu người dùng đã đăng nhập (username không rỗng), và dự án mặc định đang để "hethong",
-    // ta tự động chuyển chủ sở hữu của dự án mặc định thành tên tài khoản người dùng!
-    if (!username.empty()) {
-        auto itDef = projects_.find("proj_default");
-        if (itDef != projects_.end() && itDef->second->ownerUsername == "hethong") {
-            itDef->second->ownerUsername = username;
-            itDef->second->updatedAt = getCurrentTimeStr();
-            saveAll();
+    // Khách chưa đăng nhập: Không có dự án trên server (vẽ riêng cục bộ trên máy)
+    if (username.empty()) {
+        return res;
+    }
+
+    // Kiểm tra xem người dùng đã có dự án nào chưa
+    bool hasAny = false;
+    for (const auto& pair : projects_) {
+        const auto& p = *pair.second;
+        if (p.ownerUsername == username) {
+            hasAny = true;
+            break;
         }
+        for (const auto& m : p.members) {
+            if (m == username) {
+                hasAny = true;
+                break;
+            }
+        }
+    }
+
+    // Nếu người dùng mới chưa có dự án nào, tự động tạo 1 dự án riêng cá nhân
+    if (!hasAny) {
+        auto personalProj = std::make_shared<ProjectItem>();
+        personalProj->id = generateProjectId();
+        personalProj->name = "Bản vẽ của " + username;
+        personalProj->ownerUsername = username;
+        personalProj->createdAt = getCurrentTimeStr();
+        personalProj->updatedAt = personalProj->createdAt;
+        personalProj->revision = 1;
+        projects_[personalProj->id] = personalProj;
+        saveAll();
     }
 
     for (const auto& pair : projects_) {
         const auto& p = *pair.second;
-        bool isOwner = false;
-        if (!username.empty()) {
-            isOwner = (p.ownerUsername == username);
-        } else {
-            // Khi chưa đăng nhập (khách), dự án hethong chính là dự án mà người dùng đang thao tác
-            isOwner = (p.ownerUsername == "hethong");
-        }
-
+        bool isOwner = (p.ownerUsername == username);
         bool isMember = false;
         for (const auto& m : p.members) {
             if (m == username) {
@@ -224,8 +240,8 @@ std::vector<ProjectSummary> ProjectManager::getProjectsForUser(const std::string
             }
         }
 
-        // Người dùng được xem: dự án của mình, dự án được mời, hoặc khi chưa đăng nhập thì xem dự án hethong
-        if (isOwner || isMember || (!username.empty() && p.ownerUsername == "hethong") || username.empty()) {
+        // Chỉ hiển thị: dự án do mình làm chủ HOẶC dự án mình được mời vào vẽ chung
+        if (isOwner || isMember) {
             ProjectSummary summary;
             summary.id = p.id;
             summary.name = p.name;
@@ -238,10 +254,10 @@ std::vector<ProjectSummary> ProjectManager::getProjectsForUser(const std::string
         }
     }
 
-    // Sắp xếp: Dự án làm chủ lên trước, sau đó theo ID để giữ thứ tự ổn định: Dự án 1, Dự án 2...
+    // Sắp xếp: Dự án làm chủ lên trước, sau đó là dự án được mời
     std::sort(res.begin(), res.end(), [](const ProjectSummary& a, const ProjectSummary& b) {
         if (a.isOwner != b.isOwner) return a.isOwner > b.isOwner;
-        return a.id < b.id;
+        return a.updatedAt > b.updatedAt;
     });
 
     return res;
@@ -255,12 +271,12 @@ std::shared_ptr<ProjectItem> ProjectManager::getProject(const std::string& proje
 }
 
 bool ProjectManager::hasAccess(const std::string& projectId, const std::string& username) {
+    if (username.empty()) return false; // Khách không có quyền truy cập dự án trên server
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = projects_.find(projectId);
     if (it == projects_.end()) return false;
     const auto& p = *it->second;
-    if (p.ownerUsername == "hethong" || p.id == "proj_default") return true;
-    if (!username.empty() && p.ownerUsername == username) return true;
+    if (p.ownerUsername == username) return true;
     for (const auto& m : p.members) {
         if (m == username) return true;
     }
@@ -269,6 +285,7 @@ bool ProjectManager::hasAccess(const std::string& projectId, const std::string& 
 
 std::shared_ptr<ProjectItem> ProjectManager::createProject(const std::string& name,
                                                          const std::string& ownerUsername) {
+    if (ownerUsername.empty()) return nullptr; // Khách không tạo dự án trên server
     std::lock_guard<std::mutex> lock(mutex_);
     auto item = std::make_shared<ProjectItem>();
     item->id = generateProjectId();
@@ -278,7 +295,7 @@ std::shared_ptr<ProjectItem> ProjectManager::createProject(const std::string& na
     } else {
         item->name = name;
     }
-    item->ownerUsername = ownerUsername.empty() ? "hethong" : ownerUsername;
+    item->ownerUsername = ownerUsername;
     item->createdAt = getCurrentTimeStr();
     item->updatedAt = item->createdAt;
     item->revision = 1;
@@ -293,6 +310,10 @@ bool ProjectManager::inviteMember(const std::string& projectId,
                                  const std::string& targetInput,
                                  std::string& outError,
                                  std::string* outAddedUsername) {
+    if (requester.empty()) {
+        outError = "Vui lòng đăng nhập để mời thành viên vẽ chung.";
+        return false;
+    }
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = projects_.find(projectId);
     if (it == projects_.end()) {
@@ -302,26 +323,18 @@ bool ProjectManager::inviteMember(const std::string& projectId,
 
     auto& p = *it->second;
 
-    // Nếu dự án đang thuộc hethong và requester đã đăng nhập, tự động gán chủ dự án cho requester
-    if (p.ownerUsername == "hethong" && !requester.empty()) {
-        p.ownerUsername = requester;
+    // Chỉ chủ sở hữu dự án mới có quyền mời thành viên khác vào vẽ chung
+    if (p.ownerUsername != requester) {
+        outError = "Chỉ chủ dự án mới có quyền mời thành viên vẽ chung.";
+        return false;
     }
-
-    // Quyền mời: chủ dự án, thành viên trong dự án, hoặc dự án hethong, hoặc đang ở trong dự án
-    bool canInvite = (p.ownerUsername == requester || p.ownerUsername == "hethong" || requester.empty());
-    if (!canInvite) {
-        for (const auto& m : p.members) {
-            if (m == requester) { canInvite = true; break; }
-        }
-    }
-    canInvite = true; // Cho phép người dùng đang thao tác trên dự án này được mời bạn bè cùng vẽ
 
     if (targetInput.empty()) {
         outError = "Vui lòng nhập tên tài khoản hoặc họ tên người muốn mời.";
         return false;
     }
 
-    // Tìm tài khoản theo username hoặc họ tên
+    // Tìm tài khoản không phân biệt hoa thường
     UserAccount targetUser;
     if (!userManager_.findUser(targetInput, targetUser)) {
         outError = "Không tìm thấy tài khoản hoặc người dùng \"" + targetInput + "\" trong hệ thống.";
@@ -355,6 +368,10 @@ bool ProjectManager::removeMember(const std::string& projectId,
                                  const std::string& requester,
                                  const std::string& targetUsername,
                                  std::string& outError) {
+    if (requester.empty()) {
+        outError = "Vui lòng đăng nhập.";
+        return false;
+    }
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = projects_.find(projectId);
     if (it == projects_.end()) {
@@ -363,7 +380,7 @@ bool ProjectManager::removeMember(const std::string& projectId,
     }
 
     auto& p = *it->second;
-    bool isOwner = (p.ownerUsername == requester || p.ownerUsername == "hethong");
+    bool isOwner = (p.ownerUsername == requester);
     bool isSelf = (requester == targetUsername);
 
     if (!isOwner && !isSelf) {
@@ -387,6 +404,10 @@ std::uint64_t ProjectManager::updateProjectCanvas(const std::string& projectId,
                                                 const std::string& username,
                                                 const std::string& serializedCanvas,
                                                 std::string& outError) {
+    if (username.empty()) {
+        outError = "Tài khoản khách vẽ ở chế độ cục bộ riêng tư, không lưu lên server.";
+        return 0;
+    }
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = projects_.find(projectId);
     if (it == projects_.end()) {
@@ -395,7 +416,7 @@ std::uint64_t ProjectManager::updateProjectCanvas(const std::string& projectId,
     }
 
     auto& p = *it->second;
-    bool canEdit = (p.ownerUsername == "hethong" || p.id == "proj_default" || p.ownerUsername == username);
+    bool canEdit = (p.ownerUsername == username);
     if (!canEdit) {
         for (const auto& m : p.members) {
             if (m == username) { canEdit = true; break; }

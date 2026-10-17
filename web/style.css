@@ -927,21 +927,37 @@ h2 { margin: 4px 0 0; color: #e6ebf1; font: 700 15px "Segoe UI", Arial, sans-ser
   border: 1px solid rgba(245, 158, 11, 0.35);
   color: #f59e0b;
 }
+.proj-badge-icon.private {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+}
+.proj-badge-icon.guest {
+  background: rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #94a3b8;
+}
 .proj-badge-icon.collab {
-  background: rgba(56, 189, 248, 0.15);
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  color: #38bdf8;
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #10b981;
 }
 
-:root[data-theme="light"] .proj-badge-icon.owner {
+:root[data-theme="light"] .proj-badge-icon.owner,
+:root[data-theme="light"] .proj-badge-icon.private {
   background: #fef3c7;
   border-color: #fcd34d;
-  color: #78350f; /* Icon vương miện tối sẫm, tương phản cao trên nền sáng */
+  color: #78350f;
+}
+:root[data-theme="light"] .proj-badge-icon.guest {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
 }
 :root[data-theme="light"] .proj-badge-icon.collab {
-  background: #e0f2fe;
-  border-color: #bae6fd;
-  color: #0369a1; /* Icon nhóm tối sẫm, tương phản cao trên nền sáng */
+  background: #d1fae5;
+  border-color: #a7f3d0;
+  color: #047857;
 }
 
 :root[data-theme="light"] .project-picker-btn {

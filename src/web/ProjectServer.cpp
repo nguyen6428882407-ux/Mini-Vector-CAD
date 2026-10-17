@@ -513,14 +513,19 @@ void ProjectServer::chay(std::uint16_t port) {
         else if (pathOnly == "/api/projects" && request.method == "POST") {
             std::string token = extractBearerToken(request.authorization);
             UserAccount user;
-            std::string username = "";
-            if (userManager.validateToken(token, user)) {
-                username = user.username;
+            if (!userManager.validateToken(token, user)) {
+                respond(client.get(), 401, "Unauthorized", "{\"success\":false,\"message\":\"Vui lòng đăng nhập để tạo dự án mới.\"}", request.origin);
+                continue;
             }
+            std::string username = user.username;
             std::string name = extractJsonString(request.body, "name");
             if (name.empty()) name = "Bản vẽ mới";
 
             auto newProj = projectManager.createProject(name, username);
+            if (!newProj) {
+                respond(client.get(), 400, "Bad Request", "{\"success\":false,\"message\":\"Không tạo được dự án.\"}", request.origin);
+                continue;
+            }
             std::ostringstream oss;
             oss << "{\"success\":true,\"message\":\"Tạo dự án mới thành công!\","
                 << "\"project\":{"
@@ -537,10 +542,11 @@ void ProjectServer::chay(std::uint16_t port) {
         else if (pathOnly == "/api/projects/invite" && request.method == "POST") {
             std::string token = extractBearerToken(request.authorization);
             UserAccount user;
-            std::string requester = "";
-            if (userManager.validateToken(token, user)) {
-                requester = user.username;
+            if (!userManager.validateToken(token, user)) {
+                respond(client.get(), 401, "Unauthorized", "{\"success\":false,\"message\":\"Vui lòng đăng nhập để mời thành viên vẽ chung.\"}", request.origin);
+                continue;
             }
+            std::string requester = user.username;
 
             std::string projectId = extractJsonString(request.body, "projectId");
             std::string targetUsername = extractJsonString(request.body, "username");
@@ -558,10 +564,11 @@ void ProjectServer::chay(std::uint16_t port) {
         else if (pathOnly == "/api/projects/remove_member" && request.method == "POST") {
             std::string token = extractBearerToken(request.authorization);
             UserAccount user;
-            std::string requester = "";
-            if (userManager.validateToken(token, user)) {
-                requester = user.username;
+            if (!userManager.validateToken(token, user)) {
+                respond(client.get(), 401, "Unauthorized", "{\"success\":false,\"message\":\"Vui lòng đăng nhập.\"}", request.origin);
+                continue;
             }
+            std::string requester = user.username;
 
             std::string projectId = extractJsonString(request.body, "projectId");
             std::string targetUsername = extractJsonString(request.body, "username");
@@ -582,15 +589,13 @@ void ProjectServer::chay(std::uint16_t port) {
                 username = user.username;
             }
 
-            std::string projectId = extractQueryParam(queryStr, "id");
-            if (projectId.empty()) projectId = "proj_default";
-
-            auto proj = projectManager.getProject(projectId);
-            if (!proj) {
-                // Fallback nếu không thấy ID
-                proj = projectManager.getProject("proj_default");
+            if (username.empty()) {
+                respond(client.get(), 401, "Unauthorized", "Tài khoản khách vẽ ở chế độ cục bộ riêng tư.", request.origin, "text/plain; charset=utf-8");
+                continue;
             }
 
+            std::string projectId = extractQueryParam(queryStr, "id");
+            auto proj = projectManager.getProject(projectId);
             if (!proj || !projectManager.hasAccess(proj->id, username)) {
                 respond(client.get(), 403, "Forbidden", "Bạn không có quyền truy cập dự án này.", request.origin, "text/plain; charset=utf-8");
                 continue;
@@ -604,14 +609,13 @@ void ProjectServer::chay(std::uint16_t port) {
         else if (pathOnly == "/api/project" && request.method == "POST") {
             std::string token = extractBearerToken(request.authorization);
             UserAccount user;
-            std::string username = "";
-            if (userManager.validateToken(token, user)) {
-                username = user.username;
+            if (!userManager.validateToken(token, user)) {
+                respond(client.get(), 401, "Unauthorized", "Vui lòng đăng nhập để lưu trữ dự án lên server.", request.origin, "text/plain; charset=utf-8");
+                continue;
             }
+            std::string username = user.username;
 
             std::string projectId = extractQueryParam(queryStr, "id");
-            if (projectId.empty()) projectId = "proj_default";
-
             std::string err;
             std::uint64_t newRev = projectManager.updateProjectCanvas(projectId, username, request.body, err);
             if (newRev == 0) {

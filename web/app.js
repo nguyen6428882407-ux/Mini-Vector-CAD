@@ -3507,6 +3507,7 @@ document.addEventListener("keydown", event => {
 setZoom(100);
 render();
 updateThemeToggleUI();
+updateProjectSelector();
 connectCppBackend();
 
 // ── Đổi tên bản vẽ tại Breadcrumb (Bản vẽ / Untitled) ───────
@@ -3727,6 +3728,7 @@ async function checkAuthSession() {
     currentUser = null;
     localStorage.removeItem("mini-vector-cad-user");
     renderUserAuthSection();
+    updateProjectSelector();
     return;
   }
   try {

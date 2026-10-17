@@ -3666,7 +3666,9 @@ function renderUserAuthSection() {
       dropdown.hidden = !dropdown.hidden;
     });
 
-    logoutBtn?.addEventListener("click", handleLogout);
+    if (logoutBtn) {
+      logoutBtn.onclick = handleLogout;
+    }
   } else {
     container.innerHTML = `
       <button class="button button-quiet" id="btn-login-open" title="Đăng nhập">
@@ -3867,15 +3869,20 @@ async function handleRegisterSubmit(event) {
   }
 }
 
-async function handleLogout() {
-  if (authToken) {
-    try {
-      await fetch(`${API_BASE_URL}/api/logout`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${authToken}` }
-      });
-    } catch (_) {}
+async function handleLogout(e) {
+  if (e) {
+    if (typeof e.preventDefault === "function") e.preventDefault();
+    if (typeof e.stopPropagation === "function") e.stopPropagation();
   }
+
+  // 1. Ẩn dropdown ngay lập tức
+  const dropdown = document.getElementById("user-dropdown-board");
+  if (dropdown) dropdown.hidden = true;
+
+  // 2. Lưu token cũ để gọi api ngầm
+  const oldToken = authToken;
+
+  // 3. Xóa sạch phiên đăng nhập ngay lập tức
   authToken = "";
   currentUser = null;
   localStorage.removeItem("mini-vector-cad-auth-token");
@@ -3884,11 +3891,15 @@ async function handleLogout() {
   localStorage.removeItem("mini-vector-cad-guest-drawing");
   currentProjectId = "guest_local";
 
-  // Khi đăng xuất: Reset bản vẽ lại hoàn toàn trắng tinh
-  resetCanvasToBlank();
+  // 4. Reset bản vẽ lại hoàn toàn trắng tinh
+  try {
+    resetCanvasToBlank();
+  } catch (err) {
+    console.warn("resetCanvasToBlank error:", err);
+  }
 
+  // 5. Cập nhật giao diện về Khách ngay lập tức
   backendConnected = false;
-  renderUserAuthSection();
   userProjects = [{
     id: "guest_local",
     name: "Bản vẽ riêng (Khách)",
@@ -3897,10 +3908,20 @@ async function handleLogout() {
     members: [],
     isGuest: true
   }];
+  renderUserAuthSection();
   updateProjectSelector();
+
   const statusEl = document.querySelector("#backend-status");
   if (statusEl) statusEl.textContent = "Chế độ Khách · Bản vẽ mới";
-  setStatus("Đã đăng xuất. Bản vẽ đã được reset lại thành công.");
+  setStatus("Đã đăng xuất thành công. Bản vẽ đã được reset lại.");
+
+  // 6. Gửi API logout lên backend trong background (không chặn giao diện)
+  if (oldToken) {
+    fetch(`${API_BASE_URL}/api/logout`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${oldToken}` }
+    }).catch(() => {});
+  }
 }
 
 // Global modal events

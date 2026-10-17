@@ -36,6 +36,16 @@ let layerSearchQuery = "";
 const undoStack = [];
 const redoStack = [];
 
+let currentProjectId = localStorage.getItem("mini-vector-cad-current-project-id") || "guest_local";
+let currentUser = null;
+let authToken = localStorage.getItem("mini-vector-cad-auth-token") || "";
+try {
+  const savedUser = localStorage.getItem("mini-vector-cad-user");
+  if (savedUser) currentUser = JSON.parse(savedUser);
+} catch (_) {}
+let userProjects = [];
+let collabPollTimer = null;
+
 function wavePathData(x1, y1, x2, y2, amplitude = 15, cycles = 3) {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -3322,8 +3332,6 @@ const API_BASE_URL = (() => {
   return `${window.location.protocol}//${window.location.hostname}:8766`;
 })();
 
-let currentProjectId = localStorage.getItem("mini-vector-cad-current-project-id") || "proj_default";
-
 function getProjectApiUrl(id = currentProjectId) {
   return `${API_BASE_URL}/api/project?id=` + encodeURIComponent(id || "proj_default");
 }
@@ -3507,7 +3515,6 @@ document.addEventListener("keydown", event => {
 setZoom(100);
 render();
 updateThemeToggleUI();
-updateProjectSelector();
 connectCppBackend();
 
 // ── Đổi tên bản vẽ tại Breadcrumb (Bản vẽ / Untitled) ───────
@@ -3582,13 +3589,6 @@ applyDocumentTitle(documentTitle, false);
 // ============================================================================
 // USER AUTHENTICATION & SESSION MANAGEMENT (C++ BACKEND)
 // ============================================================================
-let currentUser = null;
-let authToken = localStorage.getItem("mini-vector-cad-auth-token") || "";
-
-try {
-  const savedUser = localStorage.getItem("mini-vector-cad-user");
-  if (savedUser) currentUser = JSON.parse(savedUser);
-} catch (_) {}
 
 function showAuthMessage(elementId, message, isSuccess = false) {
   const el = document.getElementById(elementId);
@@ -3968,8 +3968,6 @@ checkAuthSession();
 // ============================================================================
 // MULTI-USER COLLABORATION & PROJECT MANAGEMENT
 // ============================================================================
-let userProjects = [];
-let collabPollTimer = null;
 
 function getNextProjectNumber() {
   let maxNum = 0;

@@ -569,6 +569,9 @@ h2 { margin: 4px 0 0; color: #e6ebf1; font: 700 15px "Segoe UI", Arial, sans-ser
   background: #ef444425;
   border-color: #ef444466;
 }
+.user-dropdown-logout-btn * {
+  pointer-events: none;
+}
 
 /* Modal Backdrop */
 .auth-modal-backdrop {

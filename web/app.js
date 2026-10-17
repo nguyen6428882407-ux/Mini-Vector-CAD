@@ -3686,6 +3686,37 @@ function renderUserAuthSection() {
   }
 }
 
+function resetCanvasToBlank() {
+  layers.splice(0, layers.length, {
+    id: 1,
+    name: "Layer 1",
+    visible: true,
+    locked: false,
+    items: []
+  });
+  activeLayer = 0;
+  selected = null;
+  selectedItems = [];
+  copiedShape = null;
+  undoStack.splice(0, undoStack.length);
+  redoStack.splice(0, redoStack.length);
+  hasPendingLocalChanges = false;
+  applyDocumentTitle("Untitled", false);
+  render();
+  renderLayers();
+  renderSelectionToolbar();
+}
+
+async function loadAndOpenUserProject() {
+  hasPendingLocalChanges = false;
+  await loadProjectsList();
+  const targetId = (userProjects && userProjects.length > 0) ? userProjects[0].id : "proj_default";
+  await switchProject(targetId, true);
+  backendConnected = true;
+  const statusEl = document.querySelector("#backend-status");
+  if (statusEl) statusEl.textContent = "C++ đã kết nối · tự đồng bộ";
+}
+
 async function checkAuthSession() {
   if (!authToken) {
     currentUser = null;
@@ -3702,15 +3733,22 @@ async function checkAuthSession() {
       if (data.success && data.user) {
         currentUser = data.user;
         localStorage.setItem("mini-vector-cad-user", JSON.stringify(currentUser));
+        renderUserAuthSection();
+        await loadAndOpenUserProject();
+        return;
       }
     } else {
       authToken = "";
       currentUser = null;
       localStorage.removeItem("mini-vector-cad-auth-token");
       localStorage.removeItem("mini-vector-cad-user");
+      resetCanvasToBlank();
     }
   } catch (_) {
     // If backend is offline, keep cached user
+    if (currentUser) {
+      await loadAndOpenUserProject();
+    }
   }
   renderUserAuthSection();
 }
@@ -3742,9 +3780,8 @@ async function handleLoginSubmit(event) {
       localStorage.setItem("mini-vector-cad-auth-token", authToken);
       localStorage.setItem("mini-vector-cad-user", JSON.stringify(currentUser));
       closeLoginModal();
-      backendConnected = false;
       renderUserAuthSection();
-      connectCppBackend();
+      await loadAndOpenUserProject();
       setStatus(`Chào mừng bạn quay lại, ${currentUser.fullName || currentUser.username}!`);
     } else {
       showAuthMessage("login-msg", data.message || "Tên đăng nhập hoặc mật khẩu không chính xác.");
@@ -3756,9 +3793,8 @@ async function handleLoginSubmit(event) {
       currentUser = localUser;
       localStorage.setItem("mini-vector-cad-auth-token", authToken);
       closeLoginModal();
-      backendConnected = false;
       renderUserAuthSection();
-      connectCppBackend();
+      await loadAndOpenUserProject();
       setStatus(`Đăng nhập thành công (chế độ dự phòng)! Chào mừng ${currentUser.fullName || currentUser.username}.`);
     } else {
       showAuthMessage("login-msg", "Không thể kết nối đến C++ backend. Vui lòng chạy MiniVectorCADServer.exe để đăng nhập.");
@@ -3805,9 +3841,8 @@ async function handleRegisterSubmit(event) {
       localStorage.setItem("mini-vector-cad-auth-token", authToken);
       localStorage.setItem("mini-vector-cad-user", JSON.stringify(currentUser));
       closeRegisterModal();
-      backendConnected = false;
       renderUserAuthSection();
-      connectCppBackend();
+      await loadAndOpenUserProject();
       setStatus(`Đăng ký thành công! Chào mừng ${currentUser.fullName || currentUser.username}.`);
     } else {
       showAuthMessage("register-msg", data.message || "Đăng ký thất bại. Vui lòng thử lại.");
@@ -3824,9 +3859,8 @@ async function handleRegisterSubmit(event) {
     localStorage.setItem("mini-vector-cad-auth-token", authToken);
     localStorage.setItem("mini-vector-cad-user", JSON.stringify(currentUser));
     closeRegisterModal();
-    backendConnected = false;
     renderUserAuthSection();
-    connectCppBackend();
+    await loadAndOpenUserProject();
     setStatus(`Đăng ký tài khoản thành công! Chào mừng ${currentUser.fullName}.`);
   } finally {
     if (submitBtn) submitBtn.disabled = false;
@@ -3846,10 +3880,27 @@ async function handleLogout() {
   currentUser = null;
   localStorage.removeItem("mini-vector-cad-auth-token");
   localStorage.removeItem("mini-vector-cad-user");
+  localStorage.removeItem("mini-vector-cad-current-project-id");
+  localStorage.removeItem("mini-vector-cad-guest-drawing");
+  currentProjectId = "guest_local";
+
+  // Khi đăng xuất: Reset bản vẽ lại hoàn toàn trắng tinh
+  resetCanvasToBlank();
+
   backendConnected = false;
   renderUserAuthSection();
-  connectCppBackend();
-  setStatus("Đã đăng xuất. Bạn đang ở Chế độ Khách (Bản vẽ riêng).");
+  userProjects = [{
+    id: "guest_local",
+    name: "Bản vẽ riêng (Khách)",
+    owner: "Khách",
+    isOwner: true,
+    members: [],
+    isGuest: true
+  }];
+  updateProjectSelector();
+  const statusEl = document.querySelector("#backend-status");
+  if (statusEl) statusEl.textContent = "Chế độ Khách · Bản vẽ mới";
+  setStatus("Đã đăng xuất. Bản vẽ đã được reset lại thành công.");
 }
 
 // Global modal events
@@ -4208,8 +4259,8 @@ function updateProjectSelector() {
   }
 }
 
-async function switchProject(projectId) {
-  if (currentProjectId === projectId) return;
+async function switchProject(projectId, forceReload = false) {
+  if (currentProjectId === projectId && !forceReload) return;
   currentProjectId = projectId;
   localStorage.setItem("mini-vector-cad-current-project-id", projectId);
 
@@ -4221,21 +4272,8 @@ async function switchProject(projectId) {
   updateProjectSelector();
 
   if (!currentUser || !authToken || (proj && proj.isGuest)) {
-    const savedGuest = localStorage.getItem("mini-vector-cad-guest-drawing");
-    if (savedGuest) {
-      try {
-        const importedLayers = parseNativeProject(savedGuest);
-        layers.splice(0, layers.length, ...importedLayers);
-      } catch (_) {}
-    } else {
-      layers.splice(0, layers.length, { id: 1, name: "Layer 1", visible: true, locked: false, items: [] });
-    }
-    activeLayer = 0;
-    selected = null;
-    selectedItems = [];
-    hasPendingLocalChanges = false;
-    render();
-    setStatus("🔒 Đang ở Chế độ Khách (Bản vẽ riêng, lưu trên máy).");
+    resetCanvasToBlank();
+    setStatus("🔒 Đang ở Chế độ Khách (Bản vẽ mới).");
     return;
   }
 
@@ -4254,6 +4292,8 @@ async function switchProject(projectId) {
     selectedItems = [];
     hasPendingLocalChanges = false;
     render();
+    renderLayers();
+    renderSelectionToolbar();
     const isCollab = proj && Array.isArray(proj.members) && proj.members.length > 0;
     setStatus(isCollab ? `👥 Đã mở dự án vẽ chung "${proj.name}"!` : `🔒 Đã mở bản vẽ riêng "${proj ? proj.name : projectId}"!`);
   } catch (err) {

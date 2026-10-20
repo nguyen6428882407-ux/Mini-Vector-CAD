@@ -5,35 +5,41 @@
 #include "core/Diem2D.h"
 #include "core/MauSac.h"
 
-class BienDoi2D;   // forward declaration: chỉ dùng làm tham số tham chiếu
+class BienDoi2D;   // forward declaration: chi dung lam tham so tham chieu
 
 // ============================================================================
-// HinhHoc2D - lớp cơ sở TRỪU TƯỢNG của mọi hình (Composite: Component,
-//             Prototype: clone())
-// Tầng: shapes | Phụ trách: Đức Huy
-// Trách nhiệm: giữ dữ liệu chung (id, màu viền, màu nền, độ dày nét) và
-//              quy định giao diện mà mọi hình phải cài đặt.
+// HinhHoc2D - Lop co so TRUU TUONG cua moi hinh (Composite: Component, Prototype: clone)
+// Tang: shapes | Phu trach: Duc Huy
 //
-// QUY ƯỚC QUAN TRỌNG:
-//  - Mỗi đối tượng có id DUY NHẤT, cấp tự động khi tạo (1, 2, 3, ...).
-//  - Copy constructor SAO CHÉP style nhưng CẤP ID MỚI -> clone() chỉ cần
-//    std::make_unique<LopCon>(*this) là ra bản sao có id mới.
-//  - KHÔNG cho gán (operator=) để id không bị ghi đè.
-//  - KHÔNG copy/move hình theo giá trị; luôn quản lý qua std::unique_ptr<HinhHoc2D>.
-//    (Lớp này không có move constructor: "move" tự rơi về copy constructor, cũng sinh id MỚI.)
+// Trach nhiem:
+//  - Quan ly thuoc tinh hien thi chung: id, mau vieng (stroke), mau nen (fill), do day net.
+//  - Dinh nghia interface truu tuong thuan ao cho toan bo he thong hinh hoc 2D.
+//
+// QUY UOC THIET KE BAT DI BAT DICH (DESIGN CONTRACT):
+//  1. Tinh duy nhat cua ID:
+//     - Moi doi tuong khi tao ra duoc he thong cap tu dong mot ID duy nhat (1, 2, 3, ...).
+//     - demId_ la bien tinh toan cuc dam bao thu tu ID tang dan tuyen tinh.
+//  2. Quy uoc Prototype Pattern (clone):
+//     - Copy constructor SAO CHEP style (vien, nen, do day) nhung CAP ID MOI.
+//     - clone() tra ve std::unique_ptr<HinhHoc2D> chua ban sao sau (deep copy) co ID doc lap.
+//  3. Chong ghi de ID:
+//     - Toan tu gan operator= bi xoa (delete) de ngan chan viec ghi de ID va style sai lech.
+//  4. Quan ly bo nho hien dai:
+//     - Khong quan ly doi tuong qua con tro tho (raw pointer) hoac truyen theo gia tri.
+//     - Luon dong goi trong std::unique_ptr<HinhHoc2D> de dam bao RAII va chong ro ri bo nho.
 // ============================================================================
 class HinhHoc2D {
 private:
-    static int demId_;   // bộ đếm id toàn cục
+    static int demId_;   // Bo dem id toan cuc
 
 protected:
     int    id_;
-    MauSac vien_;        // màu viền (mặc định đen, đục)
-    MauSac nen_;         // màu nền  (mặc định trắng, trong suốt)
-    double doDayNet_;    // độ dày nét viền (mặc định 1.0)
+    MauSac vien_;        // Mau vien (mac dinh: den, do duc 255)
+    MauSac nen_;         // Mau nen  (mac dinh: trang, trong suot alpha = 0)
+    double doDayNet_;    // Do day net ve (mac dinh: 1.0)
 
-    HinhHoc2D();                          // cấp id mới
-    HinhHoc2D(const HinhHoc2D& other);    // copy style, cấp id MỚI
+    HinhHoc2D();                          // Khoi tao hinh moi -> cap ID moi
+    HinhHoc2D(const HinhHoc2D& other);    // Copy constructor: sao chep style, cap ID MOI
 
 public:
     virtual ~HinhHoc2D();
@@ -44,33 +50,32 @@ public:
     void setMauNen(const MauSac& m);
     void setDoDayNet(double d);
 
-    // Getter để tầng io (SvgExporter, TextSerializer) đọc style.
+    // Getter de tang io (SvgExporter, TextSerializer) va Web doc style
     const MauSac& getMauVien()  const;
     const MauSac& getMauNen()   const;
     double         getDoDayNet() const;
 
-    // In mô tả hình dạng TEXT ra os. Dùng cho menu và TextSerializer. KHÔNG phải vẽ đồ họa.
-    // ĐỊNH DẠNG ĐÃ CHỐT:
-    //  - Hình đơn: ĐÚNG MỘT dòng, bắt đầu bằng "<TenLop> #<id>" rồi các thông số, kết thúc bằng '\n'.
-    //      ví dụ: "HinhTron #3: tam=(0,0) r=5\n"
-    //  - Nhóm: dòng đầu "GroupShape #<id> (<n> hinh)\n", sau đó mỗi hình con ở các dòng tiếp theo,
-    //    thụt lề thêm 2 dấu cách cho mỗi cấp lồng; MỌI dòng đều kết thúc bằng '\n'.
-    //  - Không in thêm dòng trống ở đầu/cuối, để người gọi nối chuỗi tùy ý.
+    // In mo ta hinh dang TEXT ra ostream os.
+    // Dinh dang chot:
+    //  - Hinh don: "<TenLop> #<id>: <thong_so>\n"
+    //  - Nhom: dong dau "GroupShape #<id> (<n> hinh)\n", cac con thut le them 2 spaces moi cap.
     virtual void ve(std::ostream& os) const = 0;
 
-    // Tâm của hộp bao (bounding box) của hình; với nhóm là tâm hộp bao của mọi hình con.
-    // MenuController dùng làm tâm mặc định khi xoay/scale quanh hình.
+    // Tam hinh hoc / Tam hop bao (Bounding Box Center)
     virtual Diem2D tam() const = 0;
 
+    // Tinh dien tich hinh hoc
     virtual double tinhDienTich() const = 0;
+
+    // Tinh chu vi hinh hoc
     virtual double tinhChuVi() const = 0;
 
-    // Áp dụng phép biến đổi lên hình (thay đổi chính hình này).
+    // Ap dung ma tran phep bien doi BienDoi2D len hinh
     virtual void transform(const BienDoi2D& bd) = 0;
 
-    // Prototype: tạo bản sao SÂU, id MỚI. Trả về quyền sở hữu cho người gọi.
+    // Prototype Pattern: tao ban sao sau, cap ID moi
     virtual std::unique_ptr<HinhHoc2D> clone() const = 0;
 
-    // Sinh thẻ SVG của chính hình này (một chuỗi, không xuống dòng cuối).
+    // Sinh the vector SVG cho hinh (khong xuong dong cuoi)
     virtual std::string toSVG() const = 0;
 };

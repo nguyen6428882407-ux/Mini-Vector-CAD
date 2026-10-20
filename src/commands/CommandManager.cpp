@@ -1,10 +1,18 @@
 #include "commands/CommandManager.h"
 
+CommandManager::CommandManager(std::size_t maxHistory)
+    : maxHistorySize_(maxHistory) {}
+
 void CommandManager::thucThi(std::unique_ptr<Command> cmd) {
     if (!cmd) return;
     cmd->execute(); // Neu execute quang exception, lenh chua duoc them vao undoStack
     undoStack_.push_back(std::move(cmd));
     redoStack_.clear(); // Lenh moi thi xoa sach redo stack
+
+    // Gioi han dung luong undo neu maxHistorySize_ > 0 de chong tran RAM
+    if (maxHistorySize_ > 0 && undoStack_.size() > maxHistorySize_) {
+        undoStack_.erase(undoStack_.begin());
+    }
 }
 
 bool CommandManager::coTheUndo() const {
@@ -58,4 +66,16 @@ std::size_t CommandManager::soLenhUndo() const {
 
 std::size_t CommandManager::soLenhRedo() const {
     return redoStack_.size();
+}
+
+void CommandManager::setMaxHistorySize(std::size_t maxSize) {
+    maxHistorySize_ = maxSize;
+    if (maxHistorySize_ > 0 && undoStack_.size() > maxHistorySize_) {
+        const std::size_t excess = undoStack_.size() - maxHistorySize_;
+        undoStack_.erase(undoStack_.begin(), undoStack_.begin() + static_cast<std::ptrdiff_t>(excess));
+    }
+}
+
+std::size_t CommandManager::getMaxHistorySize() const {
+    return maxHistorySize_;
 }

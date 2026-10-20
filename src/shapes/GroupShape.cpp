@@ -100,6 +100,31 @@ const HinhHoc2D& GroupShape::hinhThu(size_t i) const {
     return *danhSachCon_.at(i);
 }
 
+const HinhHoc2D* GroupShape::timHinhCon(int id) const {
+    if (id <= 0) return nullptr;
+    for (const auto& con : danhSachCon_) {
+        if (!con) continue;
+        if (con->getId() == id) return con.get();
+        if (const auto* nhomCon = dynamic_cast<const GroupShape*>(con.get())) {
+            const HinhHoc2D* kq = nhomCon->timHinhCon(id);
+            if (kq) return kq;
+        }
+    }
+    return nullptr;
+}
+
+HinhHoc2D* GroupShape::timHinhCon(int id) {
+    return const_cast<HinhHoc2D*>(static_cast<const GroupShape*>(this)->timHinhCon(id));
+}
+
+bool GroupShape::chuaHinh(int id) const {
+    return timHinhCon(id) != nullptr;
+}
+
+void GroupShape::xoaTatCa() {
+    danhSachCon_.clear();
+}
+
 void GroupShape::ve(std::ostream& os) const {
     os << "GroupShape #" << getId() << " (" << danhSachCon_.size() << " hinh)\n";
     for (const auto& con : danhSachCon_) {
@@ -146,7 +171,9 @@ std::unique_ptr<HinhHoc2D> GroupShape::clone() const {
 std::string GroupShape::toSVG() const {
     std::ostringstream oss;
     oss << "<g id=\"group_" << getId() << "\">\n";
-    for (const auto& con : danhSachCon_) oss << "  " << con->toSVG() << "\n";
+    for (const auto& con : danhSachCon_) {
+        if (con) oss << "  " << con->toSVG() << "\n";
+    }
     oss << "</g>";
     return oss.str();
 }
@@ -164,4 +191,3 @@ std::unique_ptr<GroupShape> operator+(const HinhHoc2D& a, const HinhHoc2D& b) {
     nhom->themHinh(b.clone());
     return nhom;
 }
-

@@ -110,7 +110,12 @@ Backend chỉ lắng nghe trên loopback (`127.0.0.1`) và giới hạn nguồn 
 ctest --test-dir build --output-on-failure
 ```
 
-Các test hiện có bao gồm kiểm thử hình học, lưu/nạp dữ liệu và undo/redo.
+Các test suite tự động bao gồm:
+- `test_group`: Kiểm thử Composite Pattern, deep clone và operator+ của `GroupShape` (Đức Huy phụ trách).
+- `test_task9`: Kiểm thử 2 stack Undo/Redo của `CommandManager` và Gom/Rã nhóm của `GroupCommand` (Đức Huy phụ trách).
+- `test_shapes`: Kiểm thử hình học cơ bản, tính diện tích, chu vi, biến đổi hình.
+- `test_undo_redo`: Kiểm thử chuỗi thao tác Undo/Redo tích hợp toàn hệ thống.
+- `test_auth`: Kiểm thử xác thực người dùng và phân quyền bản vẽ.
 
 ## Cấu trúc dự án
 
@@ -132,13 +137,13 @@ Các test hiện có bao gồm kiểm thử hình học, lưu/nạp dữ liệu 
 
 ## Ghi nhận đóng góp ban đầu
 
-| Thành viên | Phần việc chính |
-|---|---|
-| Đức Huy | Interface cốt lõi, Composite Shape, Command Manager và CMake |
-| Nhất Vũ | Phép biến đổi 2D, Layer/Canvas và các lệnh thao tác hình |
-| Giang Tưởng | Điểm, màu sắc, tiện ích toán học, đoạn thẳng và hình tròn |
-| Hồ Hưng | Hình chữ nhật, tam giác và đa giác |
-| Trường Vũ | SVG, serializer, Shape Factory, menu CLI và validation |
+| Thành viên | Phần việc chính | File mã nguồn phụ trách | Trạng thái kiểm thử |
+|---|---|---|---|
+| **Đức Huy** *(Trưởng nhóm)* | Interface cốt lõi, Composite Shape, Command Manager, CMake | `HinhHoc2D.h/.cpp`, `Command.h`, `GroupShape.h/.cpp`, `CommandManager.h/.cpp`, `GroupCommand.h/.cpp`, `CMakeLists.txt` | ✅ `test_group.cpp` (7/7 PASS), `test_task9.cpp` (7/7 PASS) |
+| **Nhất Vũ** | Phép biến đổi 2D, Layer/Canvas và các lệnh thao tác hình | `BienDoi2D`, `Layer`, `BangVeCanvas`, `TransformCommand`, `RemoveShapeCommand`, `AddShapeCommand` | ✅ `test_undo_redo.cpp` |
+| **Giang Tưởng** | Điểm, màu sắc, tiện ích toán học, đoạn thẳng và hình tròn | `Diem2D`, `MauSac`, `MathUtils`, `DoanThang`, `HinhTron` | ✅ `test_shapes.cpp` |
+| **Hồ Hưng** | Hình chữ nhật, tam giác và đa giác | `HinhChuNhat`, `TamGiac`, `DaGiac` | ✅ `test_shapes.cpp` |
+| **Trường Vũ** | SVG, serializer, Shape Factory, menu CLI và validation | `SvgExporter`, `TextSerializer`, `ShapeFactory`, `MenuController` | ✅ CLI & Web Server |
 
 ## Trạng thái repository
 

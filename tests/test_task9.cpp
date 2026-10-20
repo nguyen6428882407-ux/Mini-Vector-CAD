@@ -276,7 +276,104 @@ int main() {
         std::cout << "  -> PASS Test 5!\n\n";
     }
 
-    std::cout << "=== TAT CA 5/5 TEST TASK 9 DEU PASS XUAT SAC! ===\n";
+    // -------------------------------------------------------------------------
+    // TEST 6: Kiem tra bao toan vi tri hinh trong Layer khi Gom va Undo
+    // -------------------------------------------------------------------------
+    std::cout << "[Test 6] Kiem tra bao toan vi tri hinh (Position Preservation)...\n";
+    {
+        BangVeCanvas canvas;
+        canvas.themLayer("Layer Test");
+        CommandManager mgr;
+
+        auto hA = std::make_unique<HinhTron>(Diem2D(0, 0), 1.0);
+        auto hB = std::make_unique<HinhTron>(Diem2D(1, 1), 2.0);
+        auto hC = std::make_unique<HinhTron>(Diem2D(2, 2), 3.0);
+        int idA = hA->getId();
+        int idB = hB->getId();
+        int idC = hC->getId();
+
+        mgr.thucThi(std::make_unique<AddShapeCommand>(canvas, 0, std::move(hA)));
+        mgr.thucThi(std::make_unique<AddShapeCommand>(canvas, 0, std::move(hB)));
+        mgr.thucThi(std::make_unique<AddShapeCommand>(canvas, 0, std::move(hC)));
+
+        assert(canvas.layer(0).viTriTheoId(idA) == 0);
+        assert(canvas.layer(0).viTriTheoId(idB) == 1);
+        assert(canvas.layer(0).viTriTheoId(idC) == 2);
+
+        mgr.thucThi(std::make_unique<GroupCommand>(canvas, 0, std::vector<int>{idA, idC}));
+        assert(canvas.layer(0).soHinh() == 2);
+        assert(canvas.layer(0).viTriTheoId(idB) == 1);
+
+        assert(mgr.undo());
+        assert(canvas.layer(0).soHinh() == 3);
+        assert(canvas.layer(0).viTriTheoId(idA) == 0);
+        assert(canvas.layer(0).viTriTheoId(idB) == 1);
+        assert(canvas.layer(0).viTriTheoId(idC) == 2);
+
+        std::cout << "  -> PASS Test 6!\n\n";
+    }
+
+    // -------------------------------------------------------------------------
+    // TEST 7: Stress test Undo/Redo lap lai 50 lan van giu nguyen ID ben
+    // -------------------------------------------------------------------------
+    std::cout << "[Test 7] Stress-test Undo/Redo 50 chu ky...\n";
+    {
+        BangVeCanvas canvas;
+        canvas.themLayer("Stress Layer");
+        CommandManager mgr;
+
+        auto h1 = std::make_unique<HinhTron>(Diem2D(0, 0), 5.0);
+        auto h2 = std::make_unique<DoanThang>(Diem2D(0, 0), Diem2D(5, 5));
+        int id1 = h1->getId();
+        int id2 = h2->getId();
+
+        mgr.thucThi(std::make_unique<AddShapeCommand>(canvas, 0, std::move(h1)));
+        mgr.thucThi(std::make_unique<AddShapeCommand>(canvas, 0, std::move(h2)));
+        mgr.thucThi(std::make_unique<GroupCommand>(canvas, 0, std::vector<int>{id1, id2}));
+        int groupId = canvas.layer(0).hinhThu(0).getId();
+
+        for (int cycle = 0; cycle < 50; ++cycle) {
+            assert(mgr.undo());
+            assert(canvas.layer(0).soHinh() == 2);
+            assert(canvas.layer(0).timTheoId(id1) != nullptr);
+            assert(canvas.layer(0).timTheoId(id2) != nullptr);
+
+            assert(mgr.redo());
+            assert(canvas.layer(0).soHinh() == 1);
+            assert(canvas.layer(0).timTheoId(groupId) != nullptr);
+        }
+
+        std::cout << "  -> PASS Test 7!\n\n";
+    }
+
+    // -------------------------------------------------------------------------
+    // TEST 8: Kiem tra co che gioi han dung luong stack maxHistorySize
+    // -------------------------------------------------------------------------
+    std::cout << "[Test 8] Kiem tra gioi han maxHistorySize trong CommandManager...\n";
+    {
+        BangVeCanvas canvas;
+        canvas.themLayer("Limit Layer");
+        CommandManager mgr(3); // Giới hạn tối đa 3 lệnh undo
+        assert(mgr.getMaxHistorySize() == 3);
+
+        for (int i = 0; i < 5; ++i) {
+            auto h = std::make_unique<HinhTron>(Diem2D(i, i), 1.0);
+            mgr.thucThi(std::make_unique<AddShapeCommand>(canvas, 0, std::move(h)));
+        }
+
+        // Đã thực thi 5 lệnh, nhưng maxHistorySize = 3 nên chỉ lưu tối đa 3 lệnh gần nhất
+        assert(mgr.soLenhUndo() == 3);
+
+        // Undo 3 lần là hết
+        assert(mgr.undo());
+        assert(mgr.undo());
+        assert(mgr.undo());
+        assert(!mgr.coTheUndo()); // Hết lệnh để undo
+
+        std::cout << "  -> PASS Test 8!\n\n";
+    }
+
+    std::cout << "=== TAT CA 8/8 TEST TASK 9 DEU PASS XUAT SAC! ===\n";
     return 0;
 }
 

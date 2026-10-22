@@ -365,12 +365,6 @@ function snapshot(syncBackend = true, actionName = null, details = null) {
   if (syncBackend) scheduleCppSync();
   recordStroke(actionName, details);
 }
-  undoStack.push(JSON.stringify({ layers, activeLayer }));
-  if (undoStack.length > 80) undoStack.shift();
-  redoStack.length = 0;
-  updateHistoryButtons();
-  if (syncBackend) scheduleCppSync();
-}
 
 function restore(snapshotText) {
   const state = JSON.parse(snapshotText);

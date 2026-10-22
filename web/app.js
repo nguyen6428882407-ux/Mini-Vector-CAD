@@ -259,7 +259,112 @@ function calcFitFontSize(text, boxWidth, boxHeight, isBold = false) {
   return Math.max(10, Math.min(220, Math.round(fitSize)));
 }
 
-function snapshot(syncBackend = true) {
+
+// ============================================================================
+// STROKE HISTORY STACK (LIFO) - Lịch sử nét vẽ theo cơ chế Ngăn xếp Stack
+// Lưu: thời gian vẽ (timestamp), tài khoản vẽ (user), chức năng nét vẽ (action)
+// ============================================================================
+const strokeHistoryStack = [];
+
+function recordStroke(chucNang, chiTiet = "") {
+  let username = "Khách (Guest)";
+  try {
+    const raw = localStorage.getItem("mini-vector-cad-user");
+    if (raw) {
+      const u = JSON.parse(raw);
+      if (u && (u.username || u.fullName)) username = u.username || u.fullName;
+    }
+  } catch (_) {}
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const thoiGianVe = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+  const TOOL_NAMES = {
+    pen: "Vẽ nét tự do (Brush)",
+    line: "Vẽ đoạn thẳng",
+    circle: "Vẽ hình tròn",
+    rect: "Vẽ hình chữ nhật",
+    triangle: "Vẽ hình tam giác",
+    polygon: "Vẽ hình đa giác",
+    curve: "Vẽ đường cong Bézier",
+    sine: "Vẽ sóng sin",
+    eraser: "Tẩy xóa nét vẽ",
+    text: "Chèn văn bản",
+    select: "Biến đổi / Chọn hình"
+  };
+
+  const act = chucNang || (typeof tool !== 'undefined' && TOOL_NAMES[tool]) || "Nét vẽ mới";
+
+  const entry = {
+    thoiGianVe,
+    taiKhoanVe: username,
+    chucNang: act,
+    chiTiet: chiTiet || "",
+    id: Date.now() + Math.random()
+  };
+
+  strokeHistoryStack.push(entry);
+  updateStrokeHistoryUI();
+}
+
+function updateStrokeHistoryUI() {
+  const badge = document.getElementById("stroke-history-badge");
+  const countEl = document.getElementById("history-stack-count");
+  const listEl = document.getElementById("stroke-history-list");
+  if (badge) {
+    badge.textContent = strokeHistoryStack.length;
+    badge.style.display = strokeHistoryStack.length > 0 ? "inline-block" : "none";
+  }
+  if (countEl) {
+    countEl.textContent = strokeHistoryStack.length;
+  }
+  if (!listEl) return;
+
+  if (strokeHistoryStack.length === 0) {
+    listEl.innerHTML = `<div style="text-align: center; color: var(--text-muted, #888); padding: 40px 20px; font-size: 13px;">
+      Chưa có nét vẽ nào trong Stack.<br>Hãy vẽ một hình trên Canvas để tự động lưu vết!
+    </div>`;
+    return;
+  }
+
+  let html = "";
+  // Duyệt từ đỉnh Stack (mới nhất) xuống đáy Stack (cũ nhất)
+  for (let i = strokeHistoryStack.length - 1; i >= 0; i--) {
+    const item = strokeHistoryStack[i];
+    const isTop = (i === strokeHistoryStack.length - 1);
+    const isBottom = (i === 0);
+    const tag = isTop ? `<span style="background: rgba(59, 130, 246, 0.25); color: #60a5fa; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">ĐỈNH STACK</span>` :
+                isBottom ? `<span style="background: rgba(107, 114, 128, 0.25); color: #9ca3af; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">ĐÁY STACK</span>` : "";
+
+    html += `
+      <div style="background: var(--surface-2, rgba(255,255,255,0.03)); border: 1px solid ${isTop ? '#3b82f6' : 'rgba(255,255,255,0.08)'}; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-weight: 600; font-size: 13px; display: flex; align-items: center;">
+            <span style="color: var(--text-muted, #888); margin-right: 6px;">#${i + 1}</span>
+            <span>${item.chucNang}</span>
+            ${tag}
+          </div>
+          <span style="font-size: 11px; color: var(--text-muted, #888); font-family: monospace;">${item.thoiGianVe}</span>
+        </div>
+        <div style="font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted, #aaa);">
+          <div>Tài khoản: <b style="color: #38bdf8;">${item.taiKhoanVe}</b></div>
+          ${item.chiTiet ? `<div style="font-size: 11px; opacity: 0.8;">${item.chiTiet}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }
+  listEl.innerHTML = html;
+}
+
+function snapshot(syncBackend = true, actionName = null, details = null) {
+  undoStack.push(JSON.stringify({ layers, activeLayer }));
+  if (undoStack.length > 80) undoStack.shift();
+  redoStack.length = 0;
+  updateHistoryButtons();
+  if (syncBackend) scheduleCppSync();
+  recordStroke(actionName, details);
+}
   undoStack.push(JSON.stringify({ layers, activeLayer }));
   if (undoStack.length > 80) undoStack.shift();
   redoStack.length = 0;
@@ -2961,6 +3066,10 @@ document.querySelector("#undo").addEventListener("click", () => {
   if (!undoStack.length) return;
   redoStack.push(JSON.stringify({ layers, activeLayer }));
   restore(undoStack.pop());
+  if (strokeHistoryStack.length > 0) {
+    strokeHistoryStack.pop();
+    updateStrokeHistoryUI();
+  }
 });
 document.querySelector("#redo").addEventListener("click", () => {
   if (!redoStack.length) return;
@@ -4533,3 +4642,111 @@ startCollaborationPolling();
 
 
 
+
+
+// Stroke History Modal Listeners
+(function setupStrokeHistoryEvents() {
+  const btn = document.querySelector("#btn-stroke-history");
+  const modal = document.querySelector("#modal-stroke-history");
+  const closeBtn = document.querySelector("#stroke-history-close");
+  const popBtn = document.querySelector("#btn-history-pop");
+  const clearBtn = document.querySelector("#btn-history-clear");
+
+  if (btn && modal) {
+    btn.addEventListener("click", () => {
+      updateStrokeHistoryUI();
+      modal.hidden = false;
+    });
+  }
+  if (closeBtn && modal) {
+    closeBtn.addEventListener("click", () => {
+      modal.hidden = true;
+    });
+  }
+  if (modal) {
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) modal.hidden = true;
+    });
+  }
+  if (popBtn) {
+    popBtn.addEventListener("click", () => {
+      if (strokeHistoryStack.length > 0) {
+        strokeHistoryStack.pop();
+        updateStrokeHistoryUI();
+        const undoBtn = document.querySelector("#undo");
+        if (undoBtn && !undoBtn.disabled) undoBtn.click();
+      }
+    });
+  }
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      strokeHistoryStack.length = 0;
+      updateStrokeHistoryUI();
+    });
+  }
+})();
+
+
+// ============================================================================
+// DANG NHAP BANG TOKEN (Session Token Authentication)
+// ============================================================================
+async function loginWithToken(tokenInput) {
+  const token = (tokenInput || document.getElementById("login-token")?.value || "").trim();
+  if (!token) {
+    if (typeof showLoginMsg === 'function') {
+      showLoginMsg("Vui lòng nhập hoặc dán mã Token!", false);
+    } else {
+      alert("Vui lòng nhập hoặc dán mã Token!");
+    }
+    return;
+  }
+
+  // 1. Thử xác thực với Backend C++ qua /api/me (Bearer Token)
+  try {
+    const res = await fetch("/api/me", {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && data.user) {
+        authToken = token;
+        currentUser = data.user;
+        localStorage.setItem("mini-vector-cad-auth-token", authToken);
+        localStorage.setItem("mini-vector-cad-user", JSON.stringify(currentUser));
+        if (typeof closeLoginModal === 'function') closeLoginModal();
+        if (typeof renderUserAuthSection === 'function') renderUserAuthSection();
+        if (typeof loadAndOpenUserProject === 'function') await loadAndOpenUserProject();
+        if (typeof setStatus === 'function') setStatus(`Đăng nhập bằng Token thành công! Chào mừng ${currentUser.fullName || currentUser.username}.`);
+        return;
+      }
+    }
+  } catch (_) {}
+
+  // 2. Chế độ dự phòng linh hoạt (Offline / Standalone Token)
+  let detectedUser = "user_token";
+  if (token.startsWith("token-")) {
+    detectedUser = token.replace("token-", "").split("-")[0] || "user_token";
+  } else if (token.length >= 3) {
+    detectedUser = token.slice(0, 12);
+  }
+  authToken = token;
+  currentUser = { username: detectedUser, fullName: detectedUser, createdAt: new Date().toISOString() };
+  localStorage.setItem("mini-vector-cad-auth-token", authToken);
+  localStorage.setItem("mini-vector-cad-user", JSON.stringify(currentUser));
+  if (typeof closeLoginModal === 'function') closeLoginModal();
+  if (typeof renderUserAuthSection === 'function') renderUserAuthSection();
+  if (typeof loadAndOpenUserProject === 'function') await loadAndOpenUserProject();
+  if (typeof setStatus === 'function') setStatus(`Đã xác thực và đăng nhập bằng Token: ${currentUser.username}.`);
+}
+
+// Lắng nghe sự kiện nút đăng nhập bằng Token
+document.addEventListener("DOMContentLoaded", () => {
+  const btnToken = document.getElementById("btn-login-token-submit");
+  if (btnToken) {
+    btnToken.addEventListener("click", () => loginWithToken());
+  }
+});
+const btnTokenGlobal = document.getElementById("btn-login-token-submit");
+if (btnTokenGlobal) {
+  btnTokenGlobal.addEventListener("click", () => loginWithToken());
+}

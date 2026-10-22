@@ -69,6 +69,10 @@
       <button class="button button-quiet" id="redo" title="Làm lại (Ctrl+Y)" disabled>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>Làm lại</span>
       </button>
+      <button class="button button-quiet" id="btn-stroke-history" title="Lịch sử nét vẽ (Cơ chế Stack LIFO)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>Lịch sử nét vẽ</span>
+        <span class="member-count-badge" id="stroke-history-badge" style="display:none; margin-left: 4px;">0</span>
+      </button>
       <button class="button button-quiet theme-toggle" id="theme-toggle" title="Chuyển giao diện sáng/tối" aria-label="Chuyển giao diện sáng/tối">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><span>Sáng</span>
       </button>
@@ -638,6 +642,18 @@
           <input type="password" id="login-password" placeholder="Nhập mật khẩu..." autocomplete="current-password" required>
         </div>
         <button type="submit" class="button button-primary auth-submit-btn" id="btn-login-submit">Đăng nhập</button>
+        <div style="display: flex; align-items: center; margin: 12px 0 8px; color: var(--text-muted, #888); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+          <span style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></span>
+          <span style="padding: 0 10px;">HOẶC ĐĂNG NHẬP BẰNG TOKEN</span>
+          <span style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></span>
+        </div>
+        <div class="auth-field" style="margin-bottom: 8px;">
+          <label for="login-token">Mã Session Token</label>
+          <input type="text" id="login-token" placeholder="Dán mã Token vào đây (ví dụ: token-hello)..." autocomplete="off">
+        </div>
+        <button type="button" class="button button-secondary auth-submit-btn" id="btn-login-token-submit" style="width: 100%; margin-bottom: 12px; font-weight: 600;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>Xác thực bằng Token
+        </button>
         <div class="auth-switch">
           <span>Chưa có tài khoản?</span>
           <a href="#" id="link-to-register">Đăng ký ngay</a>
@@ -777,6 +793,35 @@
         <button type="button" class="button button-primary" id="btn-guest-notice-login" style="padding: 9px 20px; font-size: 13px; font-weight: 700;">
           Đăng ký / Đăng nhập
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Lich su net ve (Stack Mechanism) -->
+  <div class="auth-modal-backdrop" id="modal-stroke-history" hidden>
+    <div class="auth-modal" style="max-width: 580px; width: 92%; max-height: 85vh; display: flex; flex-direction: column;">
+      <button class="auth-modal-close" id="stroke-history-close" title="Đóng">&times;</button>
+      
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+        <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(59, 130, 246, 0.15); display: flex; align-items: center; justify-content: center; color: #3b82f6;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div>
+          <h3 style="margin: 0; font-size: 16px; font-weight: 700;">Lịch sử nét vẽ (Stack LIFO)</h3>
+          <div style="font-size: 12px; color: var(--text-muted, #888);">Lưu vết từng nét vẽ theo cơ chế Ngăn xếp (Stack): thời gian vẽ và tài khoản vẽ</div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.04); padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-bottom: 12px;">
+        <div>Tổng số nét vẽ trong Stack: <b id="history-stack-count">0</b></div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="button button-quiet" id="btn-history-pop" style="padding: 4px 8px; font-size: 11px;">Rút đỉnh Stack (Pop)</button>
+          <button type="button" class="button button-quiet" id="btn-history-clear" style="padding: 4px 8px; font-size: 11px; color: #ef4444;">Xóa lịch sử</button>
+        </div>
+      </div>
+
+      <div id="stroke-history-list" style="overflow-y: auto; flex: 1; min-height: 200px; max-height: 50vh; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
+        <!-- Danh sach cac net ve se duoc chen vao day boi app.js -->
       </div>
     </div>
   </div>

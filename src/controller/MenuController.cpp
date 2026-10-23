@@ -15,6 +15,32 @@
 #include <sstream>
 #include <limits>
 #include <cmath>
+#include <chrono>
+#include <ctime>
+#include <cstdlib>
+
+namespace {
+std::string layThoiGianHienTai() {
+    auto now = std::chrono::system_clock::now();
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm{};
+#if defined(_WIN32)
+    localtime_s(&tm, &t);
+#else
+    localtime_r(&t, &tm);
+#endif
+    char buf[64];
+    std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm);
+    return std::string(buf);
+}
+
+std::string layNguoiDungCLI() {
+    const char* u = std::getenv("USERNAME");
+    if (!u) u = std::getenv("USER");
+    if (u && std::string(u).length() > 0) return std::string(u);
+    return "Nguoi dung (CLI)";
+}
+} // namespace
 
 MenuController::MenuController(BangVeCanvas& canvas, CommandManager& cmdMgr)
     : canvas_(canvas), cmdMgr_(cmdMgr), layerHienTai_(0) {}
@@ -43,6 +69,7 @@ void MenuController::hienThiMenuChinh() const {
     std::cout << " 9. Xuat ra file SVG (.svg)\n";
     std::cout << "10. Xuat ra file trang thai (.txt)\n";
     std::cout << "11. Nap file trang thai (.txt)\n";
+    std::cout << "12. Xem lich su ve (Nguoi ve, Thoi gian ve, Trang thai)\n";
     std::cout << " 0. Thoat\n";
     std::cout << "------------------------------------------------------\n";
     std::cout << "Lua chon cua ban: ";
@@ -169,8 +196,19 @@ void MenuController::xuLyThemHinh() {
         auto hinh = ShapeFactory::taoHinh(line);
         if (hinh) {
             int id = hinh->getId();
+            std::string loai = line.substr(0, line.find(' '));
             auto cmd = std::make_unique<AddShapeCommand>(canvas_, layerHienTai_, std::move(hinh));
             cmdMgr_.thucThi(std::move(cmd));
+
+            LichSuVeItem item;
+            item.id = id;
+            item.loaiHinh = loai;
+            item.nguoiVe = layNguoiDungCLI();
+            item.thoiGianVe = layThoiGianHienTai();
+            item.daXoa = false;
+            item.thoiGianXoa = "";
+            lichSuVe_.push_back(item);
+
             std::cout << "[Thanh cong] Da them hinh ID #" << id << " vao layer [" << layerHienTai_ << "].\n";
         } else {
             std::cout << "[Loi] Loai hinh khong duoc ho tro hoac chuoi mo ta rong!\n";
@@ -202,7 +240,17 @@ void MenuController::xuLyXoaHinh() {
     try {
         auto cmd = std::make_unique<RemoveShapeCommand>(canvas_, layIdx, id);
         cmdMgr_.thucThi(std::move(cmd));
-        std::cout << "[Thanh cong] Da xoa hinh ID #" << id << " khoi layer [" << layIdx << "].\n";
+
+        // Khi xoa net / xoa hinh: KHONG MAT LICH SU!
+        for (auto& item : lichSuVe_) {
+            if (item.id == id) {
+                item.daXoa = true;
+                item.thoiGianXoa = layThoiGianHienTai();
+                break;
+            }
+        }
+
+        std::cout << "[Thanh cong] Da xoa hinh ID #" << id << " khoi layer [" << layIdx << "]. (Lich su ve van duoc luu lai)\n";
     } catch (const std::exception& e) {
         std::cout << "[Loi] " << e.what() << "\n";
     }
@@ -430,6 +478,33 @@ void MenuController::xuLyNhapTXT() {
     }
 }
 
+void MenuController::xuLyXemLichSuVe() const {
+    std::cout << "\n======================================================================\n";
+    std::cout << "                  NHAT KY LICH SU VE (DRAWING HISTORY)                \n";
+    std::cout << "======================================================================\n";
+    if (lichSuVe_.empty()) {
+        std::cout << "Chua co thao tac ve nao duoc ghi nhan trong phien lam viec nay.\n";
+        std::cout << "======================================================================\n";
+        return;
+    }
+
+    std::cout << "Tong so thao tac / net ve da ghi nhan: " << lichSuVe_.size() << "\n";
+    std::cout << "----------------------------------------------------------------------\n";
+    for (size_t i = 0; i < lichSuVe_.size(); ++i) {
+        const auto& h = lichSuVe_[i];
+        std::cout << " [" << (i + 1) << "] ID #" << h.id
+                  << " | Loai: " << h.loaiHinh
+                  << " | Nguoi ve: " << h.nguoiVe
+                  << " | Thoi gian ve: " << h.thoiGianVe << "\n";
+        if (h.daXoa) {
+            std::cout << "     -> Trang thai: [DA XOA] luc " << h.thoiGianXoa << " (Lich su van duoc luu)\n";
+        } else {
+            std::cout << "     -> Trang thai: [Dang hien thi tren ban ve]\n";
+        }
+    }
+    std::cout << "======================================================================\n";
+}
+
 void MenuController::chay() {
     while (true) {
         hienThiMenuChinh();
@@ -461,6 +536,7 @@ void MenuController::chay() {
             case 9:  xuLyXuatSVG();        break;
             case 10: xuLyXuatTXT();        break;
             case 11: xuLyNhapTXT();        break;
+            case 12: xuLyXemLichSuVe();    break;
             default:
                 std::cout << "[Loi] Tuy chon khong hop le, vui long chon lai!\n";
                 break;

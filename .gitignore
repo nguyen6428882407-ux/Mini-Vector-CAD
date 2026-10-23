@@ -19,6 +19,7 @@
 *.out
 *.app
 build/
+bin/
 cmake-build-*/
 out/
 .vscode/

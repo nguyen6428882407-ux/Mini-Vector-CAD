@@ -46,6 +46,11 @@ try {
 let userProjects = [];
 let collabPollTimer = null;
 
+// Lịch sử vẽ & Tác giả nét vẽ
+let drawingHistory = [];
+let modalHistoryFilter = "all";
+let historySearchQuery = "";
+
 function wavePathData(x1, y1, x2, y2, amplitude = 15, cycles = 3) {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -257,6 +262,487 @@ function calcFitFontSize(text, boxWidth, boxHeight, isBold = false) {
 
   const fitSize = Math.min(maxByWidth, maxByHeight);
   return Math.max(10, Math.min(220, Math.round(fitSize)));
+}
+
+// ============================================================================
+// HỆ THỐNG LỊCH SỬ VẼ & TÁC GIẢ NÉT (DRAWING HISTORY SYSTEM)
+// Khi xóa nét hoặc gôm, lịch sử vẽ KHÔNG MẤT, lưu lại người vẽ và thời gian vẽ
+// ============================================================================
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function formatDateTime(dateInput) {
+  const d = dateInput ? new Date(dateInput) : new Date();
+  if (isNaN(d.getTime())) return "Chưa rõ thời gian";
+  const pad = n => String(n).padStart(2, "0");
+  const hh = pad(d.getHours());
+  const mm = pad(d.getMinutes());
+  const ss = pad(d.getSeconds());
+  const dd = pad(d.getDate());
+  const MM = pad(d.getMonth() + 1);
+  const yyyy = d.getFullYear();
+  return `${hh}:${mm}:${ss} - ${dd}/${MM}/${yyyy}`;
+}
+
+function getCurrentAuthorName() {
+  if (currentUser) {
+    return currentUser.fullName || currentUser.username || "Thành viên";
+  }
+  return "Khách (Bạn)";
+}
+
+function getCurrentAuthorUsername() {
+  return currentUser ? currentUser.username : "guest";
+}
+
+function getHistoryStorageKey() {
+  const projId = currentProjectId || "guest_local";
+  return `mini-vector-cad-history_${projId}`;
+}
+
+function saveHistoryToStorage() {
+  try {
+    localStorage.setItem(getHistoryStorageKey(), JSON.stringify(drawingHistory));
+  } catch (_) {}
+  syncDrawingHistoryToServer();
+}
+
+function loadHistoryFromStorage() {
+  try {
+    const raw = localStorage.getItem(getHistoryStorageKey());
+    if (raw) {
+      drawingHistory = JSON.parse(raw) || [];
+    } else {
+      drawingHistory = [];
+    }
+  } catch (_) {
+    drawingHistory = [];
+  }
+  renderHistory();
+}
+
+async function syncDrawingHistoryToServer() {
+  if (!currentUser || !authToken || !backendConnected || !currentProjectId || currentProjectId === "guest_local") {
+    return;
+  }
+  try {
+    await fetch(`${API_BASE_URL}/api/project/history?id=` + encodeURIComponent(currentProjectId), {
+      method: "POST",
+      headers: getAuthHeaders({ "Content-Type": "application/json;charset=UTF-8" }),
+      body: JSON.stringify(drawingHistory)
+    });
+  } catch (_) {}
+}
+
+async function fetchDrawingHistoryFromServer() {
+  if (!currentUser || !authToken || !backendConnected || !currentProjectId || currentProjectId === "guest_local") {
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/project/history?id=` + encodeURIComponent(currentProjectId), {
+      headers: getAuthHeaders()
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        if (data.length > 0) {
+          drawingHistory = data;
+          try {
+            localStorage.setItem(getHistoryStorageKey(), JSON.stringify(drawingHistory));
+          } catch (_) {}
+        }
+        renderHistory();
+      }
+    }
+  } catch (_) {}
+}
+
+const SVG_ICONS = {
+  user: `<svg class="meta-svg-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:5px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+  clock: `<svg class="meta-svg-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:5px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>`,
+  layer: `<svg class="meta-svg-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:5px;"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
+  palette: `<svg class="meta-svg-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:5px;"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>`
+};
+
+function getShapeIconSvg(toolType, color = "#ffffff") {
+  const c = color || "#ffffff";
+  switch (toolType) {
+    case "rect":
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>`;
+    case "circle":
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>`;
+    case "ellipse":
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>`;
+    case "triangle":
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,3 22,21 2,21"/></svg>`;
+    case "star":
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 15,8.5 22,9.5 17,14.5 18,21.5 12,18 6,21.5 7,14.5 2,9.5 9,8.5"/></svg>`;
+    case "line":
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/></svg>`;
+    case "arrow":
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+    case "curve":
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18 Q 12 6 20 18"/></svg>`;
+    case "wave":
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12 Q 7 5 12 12 T 22 12"/></svg>`;
+    case "brush":
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11l-7.5-7.5a2.12 2.12 0 0 0-3 3L15 14"/><path d="M14 15l2 2"/><path d="M11 18c-2 2-5 3-7 3 0-2 1-5 3-7l7-7"/></svg>`;
+    case "text":
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`;
+    case "image":
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+    default:
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`;
+  }
+}
+
+function recordShapeAdded(shape, layerIndex) {
+  if (!shape) return;
+  const historyId = "stroke_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+  shape._historyId = historyId;
+  shape._author = getCurrentAuthorName();
+  shape._createdAt = new Date().toISOString();
+
+  let toolName = toolLabels[shape.type] || shape.type;
+  if (shape.type === "brush") {
+    const brushStyle = shape.brushStyle || "round";
+    toolName = brushLabels[brushStyle] || "Nét cọ vẽ";
+  }
+
+  const layerName = layers[layerIndex]?.name || `Layer ${layerIndex + 1}`;
+  const strokeColor = shape.stroke || brushColor || "#000000";
+
+  const historyItem = {
+    id: historyId,
+    shapeId: shape.id || null,
+    tool: shape.type,
+    toolLabel: toolName,
+    author: getCurrentAuthorName(),
+    authorUsername: getCurrentAuthorUsername(),
+    createdAt: shape._createdAt,
+    timeFormatted: formatDateTime(shape._createdAt),
+    layerIndex: layerIndex ?? activeLayer,
+    layerName: layerName,
+    strokeColor: strokeColor,
+    fillColor: shape.fill || "none",
+    strokeWidth: shape.width || 1,
+    shapeData: structuredClone(shape),
+    deleted: false,
+    deletedAt: null,
+    deletedBy: null
+  };
+
+  drawingHistory.unshift(historyItem);
+  saveHistoryToStorage();
+  renderHistory();
+}
+
+function recordShapeDeleted(shape) {
+  if (!shape) return;
+  const histId = shape._historyId;
+  let found = null;
+  if (histId) {
+    found = drawingHistory.find(h => h.id === histId && !h.deleted);
+    if (!found) found = drawingHistory.find(h => h.id === histId);
+  }
+  if (!found) {
+    found = drawingHistory.find(h => !h.deleted && h.tool === shape.type && h.strokeColor === shape.stroke);
+  }
+  if (found) {
+    found.deleted = true;
+    found.deletedAt = formatDateTime(new Date());
+    found.deletedBy = getCurrentAuthorName();
+  }
+  saveHistoryToStorage();
+  renderHistory();
+}
+
+function restoreDeletedShape(historyId) {
+  const item = drawingHistory.find(h => h.id === historyId);
+  if (!item || !item.shapeData) return;
+  let targetLayer = item.layerIndex;
+  if (targetLayer < 0 || targetLayer >= layers.length) {
+    targetLayer = activeLayer;
+  }
+  snapshot();
+  const restored = structuredClone(item.shapeData);
+  restored._historyId = item.id;
+  layers[targetLayer].shapes.push(restored);
+  item.deleted = false;
+  item.deletedAt = null;
+  item.deletedBy = null;
+  saveHistoryToStorage();
+  render();
+  renderHistory();
+  setStatus(`Đã khôi phục ${item.toolLabel} vào ${layers[targetLayer].name}`);
+}
+
+function focusShapeOnCanvas(historyId) {
+  for (let lIdx = 0; lIdx < layers.length; lIdx++) {
+    const sIdx = layers[lIdx].shapes.findIndex(s => s._historyId === historyId);
+    if (sIdx !== -1) {
+      activeLayer = lIdx;
+      selected = { layer: lIdx, shape: sIdx };
+      selectedItems = [selected];
+      render();
+      renderSelectionToolbar();
+      renderProperties();
+      const modal = document.querySelector("#modal-drawing-history");
+      if (modal) modal.hidden = true;
+      setStatus(`Đã chọn ${layers[lIdx].shapes[sIdx].type} vẽ bởi ${drawingHistory.find(h => h.id === historyId)?.author || "Khách"}`);
+      return;
+    }
+  }
+  setStatus("Nét vẽ này hiện không còn trên canvas (có thể đã bị xóa hoặc gôm).");
+}
+
+function exportHistoryText() {
+  const activeCount = drawingHistory.filter(h => !h.deleted).length;
+  const deletedCount = drawingHistory.filter(h => h.deleted).length;
+  let content = "=================================================================\n";
+  content += "              NHẬT KÝ LỊCH SỬ VẼ - MINI VECTOR CAD\n";
+  content += `Dự án: ${documentTitle || "Bản vẽ"}\n`;
+  content += `Thời gian xuất: ${formatDateTime(new Date())}\n`;
+  content += `Tổng số nét vẽ: ${drawingHistory.length} (Đang hiển thị: ${activeCount} · Đã xóa: ${deletedCount})\n`;
+  content += "=================================================================\n\n";
+
+  drawingHistory.forEach((h, idx) => {
+    content += `#${idx + 1}. [${h.toolLabel}]\n`;
+    content += `   - Người vẽ: ${h.author} (${h.authorUsername})\n`;
+    content += `   - Thời gian vẽ: ${h.timeFormatted}\n`;
+    content += `   - Layer: ${h.layerName}\n`;
+    content += `   - Trạng thái: ${h.deleted ? `ĐÃ XÓA (Xóa lúc ${h.deletedAt || "gần đây"} bởi ${h.deletedBy || "Chưa rõ"})` : "ĐANG HIỂN THỊ TRÊN CANVAS"}\n`;
+    content += `   - Màu nét viền: ${h.strokeColor || "none"} | Màu nền: ${h.fillColor || "none"} | Độ dày: ${h.strokeWidth || 1}px\n\n`;
+  });
+
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Lich_su_ve_${(documentTitle || "ban_ve").replace(/\s+/g, "_")}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  setStatus("Đã xuất file nhật ký lịch sử vẽ (.txt) thành công!");
+}
+
+function renderHistory() {
+  const totalCount = drawingHistory.length;
+  const activeCount = drawingHistory.filter(h => !h.deleted).length;
+  const deletedCount = drawingHistory.filter(h => h.deleted).length;
+
+  // 1. Cập nhật Badge trên Topbar
+  const topBadge = document.querySelector("#history-badge");
+  if (topBadge) {
+    topBadge.textContent = totalCount;
+    topBadge.hidden = totalCount === 0;
+    topBadge.title = `Lịch sử vẽ: ${totalCount} nét (${activeCount} đang hiển thị, ${deletedCount} đã xóa)`;
+  }
+
+  // 2. Cập nhật Modal stats & counts
+  const statsEl = document.querySelector("#history-modal-stats");
+  if (statsEl) {
+    statsEl.innerHTML = `Tổng số: <b>${totalCount}</b> nét vẽ · Đang hiển thị: <b>${activeCount}</b> · Đã xóa: <b>${deletedCount}</b>`;
+  }
+  const cntAll = document.querySelector("#modal-count-all");
+  if (cntAll) cntAll.textContent = totalCount;
+  const cntActive = document.querySelector("#modal-count-active");
+  if (cntActive) cntActive.textContent = activeCount;
+  const cntDeleted = document.querySelector("#modal-count-deleted");
+  if (cntDeleted) cntDeleted.textContent = deletedCount;
+
+  // 5. Render danh sách trong Modal
+  const modalList = document.querySelector("#history-modal-list");
+  if (modalList) {
+    let items = drawingHistory;
+    if (modalHistoryFilter === "active") items = items.filter(h => !h.deleted);
+    else if (modalHistoryFilter === "deleted") items = items.filter(h => h.deleted);
+
+    if (historySearchQuery) {
+      const q = historySearchQuery.toLowerCase();
+      items = items.filter(h =>
+        h.toolLabel.toLowerCase().includes(q) ||
+        h.author.toLowerCase().includes(q) ||
+        h.timeFormatted.toLowerCase().includes(q) ||
+        (h.layerName && h.layerName.toLowerCase().includes(q))
+      );
+    }
+
+    if (items.length === 0) {
+      modalList.innerHTML = `<div class="history-empty-placeholder">${totalCount === 0 ? "Chưa có nét vẽ nào trong bản vẽ này." : "Không tìm thấy nét vẽ nào phù hợp với bộ lọc / tìm kiếm."}</div>`;
+    } else {
+      modalList.innerHTML = items.map((item, index) => {
+        const iconSvg = getShapeIconSvg(item.tool, "#ffffff");
+        const statusBadge = item.deleted
+          ? `<span class="history-status-badge badge-deleted">Đã xóa nét</span>`
+          : `<span class="history-status-badge badge-active">Đang hiển thị</span>`;
+
+        const deletionBlock = item.deleted
+          ? `<div class="history-card-deletion-info">
+               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fca5a5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+               <span>Đã bị xóa lúc: <b>${item.deletedAt || "gần đây"}</b> ${item.deletedBy ? `bởi <b>${escapeHtml(item.deletedBy)}</b>` : ""}</span>
+             </div>`
+          : "";
+
+        const actionButtons = item.deleted
+          ? `<button type="button" class="btn-history-action btn-history-restore" data-id="${item.id}" title="Khôi phục nét vẽ này trở lại canvas">
+               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+               Khôi phục nét
+             </button>`
+          : `<button type="button" class="btn-history-action btn-history-focus" data-id="${item.id}" title="Chọn và xem nét này trên canvas">
+               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+               Xem nét
+             </button>`;
+
+        return `
+          <div class="history-card ${item.deleted ? 'deleted' : ''}">
+            <div class="history-card-header">
+              <div class="history-card-title">
+                <div class="history-card-icon">
+                  ${iconSvg}
+                </div>
+                <span>${escapeHtml(item.toolLabel)} <small style="color:var(--muted); font-weight:normal;">#${totalCount - index}</small></span>
+              </div>
+              ${statusBadge}
+            </div>
+
+            <div class="history-card-details">
+              <div class="history-card-row">
+                <span class="history-card-label">${SVG_ICONS.user} Người vẽ:</span>
+                <b>${escapeHtml(item.author)}</b>
+              </div>
+              <div class="history-card-row">
+                <span class="history-card-label">${SVG_ICONS.clock} Thời gian vẽ:</span>
+                <b>${escapeHtml(item.timeFormatted)}</b>
+              </div>
+              <div class="history-card-row">
+                <span class="history-card-label">${SVG_ICONS.layer} Layer:</span>
+                <span>${escapeHtml(item.layerName)}</span>
+              </div>
+              <div class="history-card-row">
+                <span class="history-card-label">${SVG_ICONS.palette} Nét:</span>
+                <span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:${item.strokeColor}; vertical-align:middle; border:1px solid #777;"></span>
+                <span>${item.strokeColor} (${item.strokeWidth}px)</span>
+              </div>
+            </div>
+
+            ${deletionBlock}
+
+            <div class="history-card-actions">
+              <button type="button" class="btn-history-action btn-history-copy" data-id="${item.id}" title="Sao chép chi tiết nét">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Sao chép thông tin
+              </button>
+              ${actionButtons}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      modalList.querySelectorAll(".btn-history-focus").forEach(btn => {
+        btn.addEventListener("click", () => focusShapeOnCanvas(btn.dataset.id));
+      });
+
+      modalList.querySelectorAll(".btn-history-restore").forEach(btn => {
+        btn.addEventListener("click", () => restoreDeletedShape(btn.dataset.id));
+      });
+
+      modalList.querySelectorAll(".btn-history-copy").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const item = drawingHistory.find(h => h.id === btn.dataset.id);
+          if (item) {
+            const text = `${item.toolLabel} | Người vẽ: ${item.author} | Thời gian vẽ: ${item.timeFormatted} | Trạng thái: ${item.deleted ? 'Đã xóa' : 'Đang vẽ'}`;
+            navigator.clipboard.writeText(text).then(() => {
+              setStatus("Đã sao chép thông tin nét vẽ vào bộ nhớ tạm!");
+            });
+          }
+        });
+      });
+    }
+  }
+}
+
+function openHistoryModal() {
+  const modal = document.querySelector("#modal-drawing-history");
+  if (modal) {
+    modal.hidden = false;
+    renderHistory();
+  }
+}
+
+function closeHistoryModal() {
+  const modal = document.querySelector("#modal-drawing-history");
+  if (modal) modal.hidden = true;
+}
+
+function initHistoryListeners() {
+  const topHistoryBtn = document.querySelector("#btn-drawing-history");
+  if (topHistoryBtn) {
+    topHistoryBtn.addEventListener("click", openHistoryModal);
+  }
+
+  const modalCloseBtn = document.querySelector("#history-modal-close");
+  if (modalCloseBtn) {
+    modalCloseBtn.addEventListener("click", closeHistoryModal);
+  }
+
+  const modalDismissBtn = document.querySelector("#btn-history-modal-dismiss");
+  if (modalDismissBtn) {
+    modalDismissBtn.addEventListener("click", closeHistoryModal);
+  }
+
+  const modalBackdrop = document.querySelector("#modal-drawing-history");
+  if (modalBackdrop) {
+    modalBackdrop.addEventListener("click", (e) => {
+      if (e.target === modalBackdrop) closeHistoryModal();
+    });
+  }
+
+  // Filter pills in modal
+  const modalPills = document.querySelectorAll("#modal-history-filter-pills .history-pill");
+  modalPills.forEach(pill => {
+    pill.addEventListener("click", () => {
+      modalPills.forEach(p => p.classList.remove("active"));
+      pill.classList.add("active");
+      modalHistoryFilter = pill.dataset.modalFilter || "all";
+      renderHistory();
+    });
+  });
+
+  // Search in modal
+  const searchInput = document.querySelector("#history-search-input");
+  const searchClear = document.querySelector("#history-search-clear");
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      historySearchQuery = e.target.value.trim();
+      if (searchClear) searchClear.hidden = !historySearchQuery;
+      renderHistory();
+    });
+  }
+  if (searchClear && searchInput) {
+    searchClear.addEventListener("click", () => {
+      searchInput.value = "";
+      historySearchQuery = "";
+      searchClear.hidden = true;
+      renderHistory();
+      searchInput.focus();
+    });
+  }
+
+  // Export history button
+  const exportBtn = document.querySelector("#btn-export-history");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", exportHistoryText);
+  }
 }
 
 function snapshot(syncBackend = true) {
@@ -942,6 +1428,8 @@ function renderLayers() {
       if (event.target.closest(".layer-delete")) {
         if (layers.length <= 1) return;
         snapshot();
+        const removedShapes = layers[index]?.shapes || [];
+        removedShapes.forEach(s => recordShapeDeleted(s));
         layers.splice(index, 1);
         if (activeLayer === index) activeLayer = Math.max(0, index - 1);
         else if (activeLayer > index) activeLayer -= 1;
@@ -1374,8 +1862,12 @@ function eraseAtPoint(point, radius) {
     for (const shape of shapes) {
       if (shape.type === "image") { remaining.push(shape); continue; }
       if (shape.type !== "brush") {
-        if (pointHitsShape(point, shape, radius)) changed = true;
-        else remaining.push(shape);
+        if (pointHitsShape(point, shape, radius)) {
+          changed = true;
+          recordShapeDeleted(shape);
+        } else {
+          remaining.push(shape);
+        }
         continue;
       }
       // Gôm brush: đánh dấu từng đoạn thẳng giữa 2 điểm liên tiếp
@@ -1392,6 +1884,7 @@ function eraseAtPoint(point, radius) {
       }
       if (!erased.some(Boolean)) { remaining.push(shape); continue; }
       changed = true;
+      recordShapeDeleted(shape);
       // Tách thành các đoạn con liên tục chưa bị gôm
       let seg = [];
       for (let i = 0; i < pts.length; i++) {
@@ -1685,6 +2178,7 @@ drawing.addEventListener("pointerup", event => {
     if (shape.points.length === 1) shape.points.push([...shape.points[0]]);
     snapshot();
     layers[activeLayer].shapes.push(shape);
+    recordShapeAdded(shape, activeLayer);
     selected = { layer: activeLayer, shape: layers[activeLayer].shapes.length - 1 };
     selectedItems = [selected];
     previewShape = null;
@@ -1742,6 +2236,7 @@ drawing.addEventListener("pointerup", event => {
       };
       snapshot();
       layers[activeLayer].shapes.push(newTextShape);
+      recordShapeAdded(newTextShape, activeLayer);
       selected = { layer: activeLayer, shape: layers[activeLayer].shapes.length - 1 };
       selectedItems = [selected];
       setTool("select");
@@ -1758,6 +2253,7 @@ drawing.addEventListener("pointerup", event => {
     }
     snapshot();
     layers[activeLayer].shapes.push(shape);
+    recordShapeAdded(shape, activeLayer);
     selected = { layer: activeLayer, shape: layers[activeLayer].shapes.length - 1 };
     selectedItems = [selected];
     render();
@@ -2581,6 +3077,8 @@ function deleteSelectedShape() {
   snapshot();
   const sorted = [...items].sort((a, b) => b.shape - a.shape);
   sorted.forEach(item => {
+    const s = layers[item.layer]?.shapes[item.shape];
+    if (s) recordShapeDeleted(s);
     layers[item.layer]?.shapes.splice(item.shape, 1);
   });
   selected = null;
@@ -2613,6 +3111,7 @@ document.querySelector("#duplicate-shape").addEventListener("click", () => {
   const duplicate = structuredClone(layers[layerIndex].shapes[selected.shape]);
   translateShape(duplicate, 16, 16);
   layers[layerIndex].shapes.push(duplicate);
+  recordShapeAdded(duplicate, layerIndex);
   selected = { layer: layerIndex, shape: layers[layerIndex].shapes.length - 1 };
   activeLayer = layerIndex;
   render();
@@ -2635,6 +3134,7 @@ function pasteCopiedShape() {
   const pasted = structuredClone(copiedShape);
   translateShape(pasted, 16, 16);
   layers[activeLayer].shapes.push(pasted);
+  recordShapeAdded(pasted, activeLayer);
   selected = { layer: activeLayer, shape: layers[activeLayer].shapes.length - 1 };
   render();
   setStatus("Đã dán hình vào layer hiện tại");
@@ -2720,6 +3220,7 @@ imageFileInput.addEventListener("change", () => {
       const shape = { type: "image", src, x, y, w, h, opacity: 1, rotation: 0 };
       snapshot();
       layers[activeLayer].shapes.push(shape);
+      recordShapeAdded(shape, activeLayer);
       selected = { layer: activeLayer, shape: layers[activeLayer].shapes.length - 1 };
       render();
       setStatus(`Đã chèn ảnh "${file.name}" vào layer`);
@@ -3523,6 +4024,8 @@ setZoom(100);
 render();
 updateThemeToggleUI();
 connectCppBackend();
+loadHistoryFromStorage();
+initHistoryListeners();
 
 // ── Đổi tên bản vẽ tại Breadcrumb (Bản vẽ / Untitled) ───────
 function applyDocumentTitle(newTitle, announce = true) {
@@ -4321,6 +4824,7 @@ async function switchProject(projectId, forceReload = false) {
   }
 
   updateProjectSelector();
+  loadHistoryFromStorage();
 
   if (!currentUser || !authToken || (proj && proj.isGuest)) {
     resetCanvasToBlank();
@@ -4345,6 +4849,7 @@ async function switchProject(projectId, forceReload = false) {
     render();
     renderLayers();
     renderSelectionToolbar();
+    fetchDrawingHistoryFromServer();
     const isCollab = proj && Array.isArray(proj.members) && proj.members.length > 0;
     setStatus(isCollab ? `Đã mở dự án vẽ chung "${proj.name}"!` : `Đã mở bản vẽ riêng "${proj ? proj.name : projectId}"!`);
   } catch (err) {

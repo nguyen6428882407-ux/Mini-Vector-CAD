@@ -61,11 +61,7 @@ GroupShape::GroupShape(const GroupShape& other) : HinhHoc2D(other) {
 }
 
 void GroupShape::themHinh(std::unique_ptr<HinhHoc2D> hinh) {
-    if (!hinh) return;
-    if (hinh.get() == this) {
-        hinh.release();
-        return;
-    }
+    if (!hinh || hinh.get() == this) return;
     danhSachCon_.push_back(std::move(hinh));
 }
 

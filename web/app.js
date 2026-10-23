@@ -259,111 +259,12 @@ function calcFitFontSize(text, boxWidth, boxHeight, isBold = false) {
   return Math.max(10, Math.min(220, Math.round(fitSize)));
 }
 
-
-// ============================================================================
-// STROKE HISTORY STACK (LIFO) - Lịch sử nét vẽ theo cơ chế Ngăn xếp Stack
-// Lưu: thời gian vẽ (timestamp), tài khoản vẽ (user), chức năng nét vẽ (action)
-// ============================================================================
-const strokeHistoryStack = [];
-
-function recordStroke(chucNang, chiTiet = "") {
-  let username = "Khách (Guest)";
-  try {
-    const raw = localStorage.getItem("mini-vector-cad-user");
-    if (raw) {
-      const u = JSON.parse(raw);
-      if (u && (u.username || u.fullName)) username = u.username || u.fullName;
-    }
-  } catch (_) {}
-
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const thoiGianVe = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-
-  const TOOL_NAMES = {
-    pen: "Vẽ nét tự do (Brush)",
-    line: "Vẽ đoạn thẳng",
-    circle: "Vẽ hình tròn",
-    rect: "Vẽ hình chữ nhật",
-    triangle: "Vẽ hình tam giác",
-    polygon: "Vẽ hình đa giác",
-    curve: "Vẽ đường cong Bézier",
-    sine: "Vẽ sóng sin",
-    eraser: "Tẩy xóa nét vẽ",
-    text: "Chèn văn bản",
-    select: "Biến đổi / Chọn hình"
-  };
-
-  const act = chucNang || (typeof tool !== 'undefined' && TOOL_NAMES[tool]) || "Nét vẽ mới";
-
-  const entry = {
-    thoiGianVe,
-    taiKhoanVe: username,
-    chucNang: act,
-    chiTiet: chiTiet || "",
-    id: Date.now() + Math.random()
-  };
-
-  strokeHistoryStack.push(entry);
-  updateStrokeHistoryUI();
-}
-
-function updateStrokeHistoryUI() {
-  const badge = document.getElementById("stroke-history-badge");
-  const countEl = document.getElementById("history-stack-count");
-  const listEl = document.getElementById("stroke-history-list");
-  if (badge) {
-    badge.textContent = strokeHistoryStack.length;
-    badge.style.display = strokeHistoryStack.length > 0 ? "inline-block" : "none";
-  }
-  if (countEl) {
-    countEl.textContent = strokeHistoryStack.length;
-  }
-  if (!listEl) return;
-
-  if (strokeHistoryStack.length === 0) {
-    listEl.innerHTML = `<div style="text-align: center; color: var(--text-muted, #888); padding: 40px 20px; font-size: 13px;">
-      Chưa có nét vẽ nào trong Stack.<br>Hãy vẽ một hình trên Canvas để tự động lưu vết!
-    </div>`;
-    return;
-  }
-
-  let html = "";
-  // Duyệt từ đỉnh Stack (mới nhất) xuống đáy Stack (cũ nhất)
-  for (let i = strokeHistoryStack.length - 1; i >= 0; i--) {
-    const item = strokeHistoryStack[i];
-    const isTop = (i === strokeHistoryStack.length - 1);
-    const isBottom = (i === 0);
-    const tag = isTop ? `<span style="background: rgba(59, 130, 246, 0.25); color: #60a5fa; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">ĐỈNH STACK</span>` :
-                isBottom ? `<span style="background: rgba(107, 114, 128, 0.25); color: #9ca3af; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">ĐÁY STACK</span>` : "";
-
-    html += `
-      <div style="background: var(--surface-2, rgba(255,255,255,0.03)); border: 1px solid ${isTop ? '#3b82f6' : 'rgba(255,255,255,0.08)'}; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="font-weight: 600; font-size: 13px; display: flex; align-items: center;">
-            <span style="color: var(--text-muted, #888); margin-right: 6px;">#${i + 1}</span>
-            <span>${item.chucNang}</span>
-            ${tag}
-          </div>
-          <span style="font-size: 11px; color: var(--text-muted, #888); font-family: monospace;">${item.thoiGianVe}</span>
-        </div>
-        <div style="font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--text-muted, #aaa);">
-          <div>Tài khoản: <b style="color: #38bdf8;">${item.taiKhoanVe}</b></div>
-          ${item.chiTiet ? `<div style="font-size: 11px; opacity: 0.8;">${item.chiTiet}</div>` : ''}
-        </div>
-      </div>
-    `;
-  }
-  listEl.innerHTML = html;
-}
-
-function snapshot(syncBackend = true, actionName = null, details = null) {
+function snapshot(syncBackend = true) {
   undoStack.push(JSON.stringify({ layers, activeLayer }));
   if (undoStack.length > 80) undoStack.shift();
   redoStack.length = 0;
   updateHistoryButtons();
   if (syncBackend) scheduleCppSync();
-  recordStroke(actionName, details);
 }
 
 function restore(snapshotText) {
@@ -851,6 +752,12 @@ function renderSelectionToolbar() {
     bottomEdge = Math.max(...corners.map(point => point.y)) - stage.top;
   }
 
+  if (window.innerWidth <= 768) {
+    toolbar.style.left = "";
+    toolbar.style.top = "";
+    toolbar.style.transform = "";
+    return;
+  }
   const toolbarWidth = toolbar.offsetWidth || 300;
   const toolbarHeight = toolbar.offsetHeight || 38;
   const gap = 12;
@@ -3039,7 +2946,7 @@ function updateThemeToggleUI() {
   if (!button) return;
   const sunSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
   const moonSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
-  button.innerHTML = theme === "dark" ? `${sunSvg}<span>Sáng</span>` : `${moonSvg}<span>Tối</span>`;
+  button.innerHTML = theme === "dark" ? `${sunSvg}<span class="btn-text">Sáng</span>` : `${moonSvg}<span class="btn-text">Tối</span>`;
   button.title = theme === "dark" ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối";
 }
 
@@ -3060,10 +2967,6 @@ document.querySelector("#undo").addEventListener("click", () => {
   if (!undoStack.length) return;
   redoStack.push(JSON.stringify({ layers, activeLayer }));
   restore(undoStack.pop());
-  if (strokeHistoryStack.length > 0) {
-    strokeHistoryStack.pop();
-    updateStrokeHistoryUI();
-  }
 });
 document.querySelector("#redo").addEventListener("click", () => {
   if (!redoStack.length) return;
@@ -3162,8 +3065,9 @@ document.querySelector("#zoom-out").addEventListener("click", () => setZoom(zoom
 document.querySelector("#fit").addEventListener("click", () => {
   const stage = document.querySelector("#canvas-stage");
   if (!stage) { setZoom(100); return; }
-  const availW = Math.max(100, stage.clientWidth - 60);
-  const availH = Math.max(100, stage.clientHeight - 60);
+  const stageMargin = window.innerWidth <= 768 ? 20 : 60;
+  const availW = Math.max(100, stage.clientWidth - stageMargin);
+  const availH = Math.max(100, stage.clientHeight - stageMargin);
   const fitZoom = Math.min(availW / CANVAS_WIDTH, availH / CANVAS_HEIGHT) * 100;
   setZoom(Math.max(25, Math.min(400, Math.round(fitZoom / 5) * 5)));
   stage.scrollLeft = Math.max(0, (stage.scrollWidth - stage.clientWidth) / 2);
@@ -3785,10 +3689,10 @@ function renderUserAuthSection() {
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
           <circle cx="12" cy="7" r="4"></circle>
         </svg>
-        <span>Đăng nhập</span>
+        <span class="btn-text">Đăng nhập</span>
       </button>
       <button class="button button-secondary" id="btn-register-open" title="Đăng ký tài khoản">
-        <span>Đăng ký</span>
+        <span class="btn-text">Đăng ký</span>
       </button>
     `;
 
@@ -4638,44 +4542,146 @@ startCollaborationPolling();
 
 
 
-// Stroke History Modal Listeners
-(function setupStrokeHistoryEvents() {
-  const btn = document.querySelector("#btn-stroke-history");
-  const modal = document.querySelector("#modal-stroke-history");
-  const closeBtn = document.querySelector("#stroke-history-close");
-  const popBtn = document.querySelector("#btn-history-pop");
-  const clearBtn = document.querySelector("#btn-history-clear");
+// ==========================================================================
+// MOBILE & TABLET RESPONSIVE ENHANCEMENTS
+// ==========================================================================
 
-  if (btn && modal) {
-    btn.addEventListener("click", () => {
-      updateStrokeHistoryUI();
-      modal.hidden = false;
-    });
+// ── Bật/Tắt Bảng điều khiển (Inspector: Layers & Thuộc tính) ──
+const inspectorPanel = document.getElementById("inspector-panel") || document.querySelector(".inspector");
+const appShellEl = document.getElementById("app-shell") || document.querySelector(".app-shell");
+const inspectorBackdrop = document.getElementById("inspector-backdrop");
+const inspectorToggleBtns = document.querySelectorAll(".btn-inspector-toggle, #btn-inspector-toggle");
+const inspectorCloseBtn = document.getElementById("inspector-close-btn");
+const quickPropertiesBtn = document.getElementById("quick-properties");
+
+function toggleInspector(forceOpen = null) {
+  if (!inspectorPanel) return;
+  const isMobile = window.innerWidth <= 768;
+  const isTablet = window.innerWidth > 768 && window.innerWidth <= 1024;
+  
+  const currentlyOpen = isMobile || isTablet
+    ? inspectorPanel.classList.contains("open")
+    : !appShellEl?.classList.contains("inspector-collapsed");
+    
+  const shouldOpen = forceOpen !== null ? forceOpen : !currentlyOpen;
+
+  if (isMobile || isTablet) {
+    inspectorPanel.classList.toggle("open", shouldOpen);
+    if (inspectorBackdrop) {
+      inspectorBackdrop.hidden = !shouldOpen;
+    }
+  } else {
+    // Desktop: collapse / expand
+    appShellEl?.classList.toggle("inspector-collapsed", !shouldOpen);
+    if (inspectorBackdrop) inspectorBackdrop.hidden = true;
   }
-  if (closeBtn && modal) {
-    closeBtn.addEventListener("click", () => {
-      modal.hidden = true;
-    });
+
+  inspectorToggleBtns.forEach(btn => {
+    btn.classList.toggle("active", shouldOpen);
+  });
+
+  // Re-render rulers and toolbar when layout changes
+  setTimeout(() => {
+    renderRulers();
+    renderSelectionToolbar();
+  }, 260);
+}
+
+inspectorToggleBtns.forEach(btn => {
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+    toggleInspector();
+  });
+});
+
+if (inspectorCloseBtn) {
+  inspectorCloseBtn.addEventListener("click", () => toggleInspector(false));
+}
+
+if (inspectorBackdrop) {
+  inspectorBackdrop.addEventListener("click", () => toggleInspector(false));
+}
+
+if (quickPropertiesBtn) {
+  quickPropertiesBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    toggleInspector(true);
+  });
+}
+
+// Close inspector on Esc key if on mobile/tablet
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape" && window.innerWidth <= 1024 && inspectorPanel?.classList.contains("open")) {
+    toggleInspector(false);
   }
-  if (modal) {
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) modal.hidden = true;
-    });
-  }
-  if (popBtn) {
-    popBtn.addEventListener("click", () => {
-      if (strokeHistoryStack.length > 0) {
-        strokeHistoryStack.pop();
-        updateStrokeHistoryUI();
-        const undoBtn = document.querySelector("#undo");
-        if (undoBtn && !undoBtn.disabled) undoBtn.click();
+});
+
+// ── Hỗ trợ Pinch-to-Zoom & Multi-touch trên Mobile & iPad/Tablet ──
+const activeTouchPoints = new Map();
+let initialPinchDistance = null;
+let initialPinchZoom = null;
+
+const stageEl = document.querySelector("#canvas-stage");
+if (stageEl) {
+  stageEl.addEventListener("pointerdown", e => {
+    if (e.pointerType === "touch") {
+      activeTouchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (activeTouchPoints.size === 2) {
+        // Hủy thao tác vẽ 1 ngón khi xuất hiện ngón thứ 2
+        if (pointerAction) {
+          if (pointerAction.mode === "draw" || pointerAction.mode === "brush") previewShape = null;
+          pointerAction = null;
+          renderPreview();
+        }
+        const pts = Array.from(activeTouchPoints.values());
+        initialPinchDistance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        initialPinchZoom = zoom;
       }
-    });
-  }
-  if (clearBtn) {
-    clearBtn.addEventListener("click", () => {
-      strokeHistoryStack.length = 0;
-      updateStrokeHistoryUI();
-    });
-  }
-})();
+    }
+  });
+
+  stageEl.addEventListener("pointermove", e => {
+    if (e.pointerType === "touch" && activeTouchPoints.has(e.pointerId)) {
+      activeTouchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (activeTouchPoints.size === 2 && initialPinchDistance && initialPinchDistance > 10) {
+        const pts = Array.from(activeTouchPoints.values());
+        const currentDistance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        const center = {
+          clientX: (pts[0].x + pts[1].x) / 2,
+          clientY: (pts[0].y + pts[1].y) / 2
+        };
+        const scaleFactor = currentDistance / initialPinchDistance;
+        const targetZoom = Math.max(25, Math.min(400, Math.round(initialPinchZoom * scaleFactor)));
+        setZoom(targetZoom, center);
+      }
+    }
+  });
+
+  const clearTouchPoint = e => {
+    activeTouchPoints.delete(e.pointerId);
+    if (activeTouchPoints.size < 2) {
+      initialPinchDistance = null;
+      initialPinchZoom = null;
+    }
+  };
+
+  stageEl.addEventListener("pointerup", clearTouchPoint);
+  stageEl.addEventListener("pointercancel", clearTouchPoint);
+}
+
+// Tự động fit canvas khi xoay màn hình (orientation change)
+window.addEventListener("orientationchange", () => {
+  setTimeout(() => {
+    const fitBtn = document.querySelector("#fit");
+    if (fitBtn && window.innerWidth <= 1024) fitBtn.click();
+    renderRulers();
+  }, 300);
+});
+
+// Auto-fit on small screen initial load
+if (window.innerWidth <= 768) {
+  setTimeout(() => {
+    const fitBtn = document.querySelector("#fit");
+    if (fitBtn) fitBtn.click();
+  }, 200);
+}

@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Báo Cáo Task 22 - Mini Vector CAD (Xem dạng tài liệu Word)</title>
+  <!-- Thư viện Mermaid để tự động vẽ mọi sơ đồ -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    /* Kiểu trang chuẩn văn bản Word (A4 View) */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #dce1e8;
+      font-family: "Segoe UI", Calibri, "Times New Roman", Arial, sans-serif;
+      color: #1a1a1a;
+      line-height: 1.65;
+      padding: 70px 20px 40px 20px;
+    }
+    
+    /* Thanh công cụ cố định trên đỉnh */
+    .top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 52px;
+      background: #1e293b;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+      z-index: 9999;
+    }
+    .top-bar .title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .top-bar .actions {
+      display: flex;
+      gap: 12px;
+    }
+    .top-btn {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      padding: 7px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+    .top-btn:hover {
+      background: #1d4ed8;
+    }
+    .top-btn.secondary {
+      background: #475569;
+    }
+    .top-btn.secondary:hover {
+      background: #334155;
+    }
+
+    /* Trang giấy A4 mô phỏng Microsoft Word */
+    .word-page {
+      max-width: 960px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 60px 70px;
+      box-shadow: 0 4px 25px rgba(0,0,0,0.15);
+      border-radius: 4px;
+      min-height: 100vh;
+    }
+
+    /* Định dạng typography văn bản báo cáo */
+    h1.doc-title {
+      font-size: 2rem;
+      color: #1e3a8a;
+      text-align: center;
+      margin-bottom: 24px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+    .callout-box {
+      background: #f0f7ff;
+      border-left: 5px solid #2563eb;
+      padding: 14px 20px;
+      margin-bottom: 30px;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.95rem;
+      color: #1e293b;
+    }
+    .callout-box p {
+      margin-bottom: 6px;
+    }
+    .callout-box p:last-child {
+      margin-bottom: 0;
+    }
+    hr {
+      border: 0;
+      height: 1px;
+      background: #e2e8f0;
+      margin: 32px 0;
+    }
+
+    h2 {
+      font-size: 1.45rem;
+      color: #0f172a;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 8px;
+      margin-top: 36px;
+      margin-bottom: 16px;
+      font-weight: 700;
+    }
+    h3 {
+      font-size: 1.2rem;
+      color: #1e3a8a;
+      margin-top: 24px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    p {
+      margin-bottom: 14px;
+      text-align: justify;
+      color: #334155;
+      font-size: 1rem;
+    }
+    ol, ul {
+      margin-left: 24px;
+      margin-bottom: 16px;
+      color: #334155;
+    }
+    li {
+      margin-bottom: 6px;
+    }
+
+    /* Bảng biểu Word */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0 28px 0;
+      font-size: 0.92rem;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 10px 14px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background-color: #f1f5f9;
+      color: #0f172a;
+      font-weight: 600;
+    }
+    tr:nth-child(even) td {
+      background-color: #f8fafc;
+    }
+
+    /* Khung chứa sơ đồ Mermaid */
+    .diagram-container {
+      margin: 24px 0 32px 0;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fafafa;
+      padding: 20px;
+      position: relative;
+    }
+    .diagram-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed #cbd5e1;
+    }
+    .diagram-caption {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .diagram-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-export {
+      background: #ffffff;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .btn-export:hover {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #2563eb;
+    }
+    .mermaid-viewport {
+      overflow-x: auto;
+      display: flex;
+      justify-content: center;
+      padding: 10px 0;
+    }
+    .mermaid-viewport svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* In ấn (Print to PDF) */
+    @media print {
+      body {
+        background: #fff;
+        padding: 0;
+      }
+      .top-bar, .diagram-actions, .diagram-header {
+        display: none !important;
+      }
+      .word-page {
+        box-shadow: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      .diagram-container {
+        border: 1px solid #ddd;
+        page-break-inside: avoid;
+      }
+      h2, h3 {
+        page-break-after: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Thanh công cụ -->
+  <div class="top-bar">
+    <div class="title">📄 Chế độ Xem Báo Cáo Word (Có đầy đủ sơ đồ trực quan)</div>
+    <div class="actions">
+      <button class="top-btn" onclick="window.print()">🖨️ In ra / Lưu thành PDF</button>
+      <button class="top-btn secondary" onclick="alert('Hướng dẫn sao chép sang Word:\n1. Bấm Ctrl + A để chọn toàn bộ trang này.\n2. Bấm Ctrl + C để sao chép.\n3. Mở file Microsoft Word mới và bấm Ctrl + V để dán.\nHoặc chuột phải vào file HTML này -> Open with -> Microsoft Word.')">📋 Hướng dẫn chép vào Word</button>
+    </div>
+  </div>
+
+  <!-- Trang văn bản -->
+  <div class="word-page">
+    <h1 class="doc-title">Phân Tích Kiến Trúc Dự Án Mini Vector CAD & Thiết Kế UML (Task 22)</h1>
+
+    <div class="callout-box">
+      <p><strong>Tài liệu bàn giao:</strong> Task 22 - Thiết kế sơ đồ lớp UML (Class Diagram) & Phân tích luồng hoạt động hệ thống.</p>
+      <p><strong>Dự án:</strong> Mini Vector CAD (C++17, CLI & Web/C++ Server).</p>
+      <p><strong>Mục tiêu:</strong> Mô tả cấu trúc tĩnh, mối quan hệ giữa các thực thể cốt lõi và các luồng hoạt động (Activity / Sequence) của hệ thống.</p>
+    </div>
+
+    <hr>
+
+    <h2>1. Phân Tích Tổng Quan Dự Án & Kiến Trúc Phần Mềm</h2>
+
+    <h3>1.1. Mục tiêu và phạm vi hệ thống</h3>
+    <p>
+      <strong>Mini Vector CAD</strong> là ứng dụng đồ họa vector 2D được viết bằng <strong>C++17</strong>, hỗ trợ quản lý bản vẽ theo nhiều lớp (layers), vẽ và biến đổi các hình học cơ bản/phức tạp, cơ chế Hoàn tác/Làm lại (Undo/Redo), xuất/nhập file văn bản thuần (.txt) và đồ họa vector chuẩn SVG. Hệ thống cung cấp hai môi trường hoạt động:
+    </p>
+    <ol>
+      <li><strong>Giao diện dòng lệnh tương tác (CLI):</strong> Điều phối bởi <code>MenuController</code> phục vụ người dùng console.</li>
+      <li><strong>Giao diện Web & C++ Backend Server:</strong> Kết nối qua HTTP Socket Server cục bộ (<code>ProjectServer</code>), tích hợp hệ thống xác thực người dùng (<code>UserManager</code>) và quản lý dự án bản vẽ (<code>ProjectManager</code>).</li>
+    </ol>
+
+    <!-- SƠ ĐỒ 1: KIẾN TRÚC PHÂN TẦNG -->
+    <div class="diagram-container" id="container-diag-0">
+      <div class="diagram-header">
+        <span class="diagram-caption">Hình 1.1: Sơ đồ kiến trúc phân tầng tổng thể hệ thống</span>
+        <div class="diagram-actions">
+          <button class="btn-export" onclick="downloadPNG(0, 'Hinh_1_1_Kien_Truc_He_Thong.png')">🖼️ Lưu PNG</button>
+          <button class="btn-export" onclick="downloadSVG(0, 'Hinh_1_1_Kien_Truc_He_Thong.svg')">💾 Lưu SVG</button>
+        </div>
+      </div>
+      <div class="mermaid-viewport" id="diag-0">
+        <pre class="mermaid">
+flowchart TB
+    subgraph UI_Layer["Tầng Giao Diện (Presentation Layer)"]
+        CLI["CLI Menu Console (MenuController)"]
+        WEB["Giao diện Web (HTML5/Canvas/JS)"]
+    end
+
+    subgraph Service_Net["Tầng Dịch Vụ & Mạng (Service & Server)"]
+        SERVER["ProjectServer (HTTP Socket Server)"]
+        USER_MGR["UserManager (Auth & Session)"]
+        PROJ_MGR["ProjectManager (Dự án & Phân quyền)"]
+    end
+
+    subgraph Controller_Command["Tầng Điều Khiển & Lệnh (Commands)"]
+        CMDMGR["CommandManager (2 Stacks Undo/Redo)"]
+        CMD["Command Interface"]
+        ADD_CMD["AddShapeCommand"]
+        DEL_CMD["RemoveShapeCommand"]
+        TRF_CMD["TransformCommand"]
+        GRP_CMD["GroupCommand"]
+    end
+
+    subgraph Domain_Canvas["Tầng Miền Dữ Liệu Bản Vẽ (Canvas Model)"]
+        CANVAS["BangVeCanvas"]
+        LAYER["Layer (Quản lý hình, Ẩn/Hiện, Khóa)"]
+    end
+
+    subgraph Domain_Shapes["Tầng Hình Học (Shapes & Geometry)"]
+        FACTORY["ShapeFactory"]
+        HINH["HinhHoc2D (Component)"]
+        LEAF["Hình đơn: HinhTron, DoanThang, HinhChuNhat, TamGiac, DaGiac, NetVeTuDo"]
+        COMPOSITE["GroupShape (Composite)"]
+        CORE["Core: Diem2D, MauSac, BienDoi2D (Affine 3x3), MathUtils"]
+    end
+
+    subgraph IO_Layer["Tầng Xuất Nhập Dữ Liệu (I/O)"]
+        SVG["SvgExporter (Xuất file SVG)"]
+        TXT["TextSerializer (Lưu/Nạp file .txt)"]
+    end
+
+    CLI --> CMDMGR
+    CLI --> CANVAS
+    CLI --> SVG
+    CLI --> TXT
+
+    WEB <-->|HTTP REST JSON| SERVER
+    SERVER --> USER_MGR
+    SERVER --> PROJ_MGR
+    PROJ_MGR --> CANVAS
+    SERVER --> TXT
+
+    CMDMGR o-- CMD
+    CMD <|-- ADD_CMD
+    CMD <|-- DEL_CMD
+    CMD <|-- TRF_CMD
+    CMD <|-- GRP_CMD
+
+    CMD --> CANVAS
+    CANVAS *-- LAYER
+    LAYER o-- HINH
+
+    FACTORY ..> HINH : "Instantiates"
+    HINH <|-- LEAF
+    HINH <|-- COMPOSITE
+    COMPOSITE o-- HINH : "Chứa đệ quy"
+    HINH --> CORE
+        </pre>
+      </div>
+    </div>
+
+    <h3>1.2. Các Design Pattern Cốt Lõi Được Áp Dụng</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Design Pattern</th>
+          <th>Lớp tham gia</th>
+          <th>Mục đích và vai trò trong hệ thống</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Composite Pattern</strong></td>
+          <td><code>HinhHoc2D</code> (Component), <code>GroupShape</code> (Composite), <code>HinhTron</code>, <code>DoanThang</code>, <code>HinhChuNhat</code>, <code>TamGiac</code>, <code>DaGiac</code>, <code>NetVeTuDo</code> (Leafs)</td>
+          <td>Xử lý hình đơn lẻ và nhóm hình phức hợp một cách đồng nhất. <code>GroupShape</code> có thể chứa các hình đơn hoặc các <code>GroupShape</code> con lồng nhau vô hạn theo cấu trúc cây (Tree structure). Khi gọi tính diện tích, chu vi, biến đổi, vẽ, hệ thống tự động đệ quy xuống các nút lá.</td>
+        </tr>
+        <tr>
+          <td><strong>Prototype Pattern</strong></td>
+          <td><code>HinhHoc2D::clone()</code>, các lớp hình cụ thể</td>
+          <td>Cung cấp khả năng sao chép sâu (deep copy) đối tượng hình học mà không cần biết kiểu cụ thể. Điểm đặc biệt của hệ thống: <code>clone()</code> sao chép kiểu dáng (stroke, fill, nét) nhưng <strong>cấp phát ID duy nhất mới</strong>, bảo đảm bất biến tính toàn vẹn định danh.</td>
+        </tr>
+        <tr>
+          <td><strong>Command Pattern</strong></td>
+          <td><code>Command</code> (Interface), <code>CommandManager</code> (Invoker), <code>AddShapeCommand</code>, <code>RemoveShapeCommand</code>, <code>TransformCommand</code>, <code>GroupCommand</code> (Concrete Commands), <code>BangVeCanvas</code> (Receiver)</td>
+          <td>Đóng gói mọi thao tác thay đổi bản vẽ thành đối tượng lệnh có khả năng thực thi (<code>execute()</code>) và hoàn tác (<code>undo()</code>). Sử dụng 2 ngăn xếp <code>undoStack_</code> và <code>redoStack_</code>. Hỗ trợ rollback chính xác mà vẫn bảo toàn ID gốc để không làm gãy chuỗi lệnh phía sau.</td>
+        </tr>
+        <tr>
+          <td><strong>Simple Factory / Factory Method</strong></td>
+          <td><code>ShapeFactory</code></td>
+          <td>Phân tích chuỗi mô tả (từ CLI hoặc file TXT) để sinh đối tượng hình học tương ứng (<code>tron</code>, <code>doanthang</code>, <code>chunhat</code>, <code>tamgiac</code>, <code>dagiac</code>, <code>brush</code>), tách biệt hoàn toàn logic khởi tạo và kiểm tra dữ liệu đầu vào khỏi các lớp nghiệp vụ.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr>
+
+    <h2>2. Thiết Kế Sơ Đồ Lớp UML (Task 22 - Class Diagram)</h2>
+    <p>
+      Dưới đây là sơ đồ lớp chi tiết của hệ thống mô tả cấu trúc tĩnh, thuộc tính, phương thức và các mối quan hệ giữa các thực thể cốt lõi theo đúng yêu cầu bàn giao của Task 22:
+    </p>
+
+    <!-- SƠ ĐỒ 2: SƠ ĐỒ LỚP UML TASK 22 -->
+    <div class="diagram-container" id="container-diag-1">
+      <div class="diagram-header">
+        <span class="diagram-caption">Hình 2.1: Sơ đồ lớp UML chi tiết toàn hệ thống (Task 22 - Class Diagram)</span>
+        <div class="diagram-actions">
+          <button class="btn-export" onclick="downloadPNG(1, 'Hinh_2_1_UML_Class_Diagram_Task22.png')">🖼️ Lưu PNG</button>
+          <button class="btn-export" onclick="downloadSVG(1, 'Hinh_2_1_UML_Class_Diagram_Task22.svg')">💾 Lưu SVG</button>
+        </div>
+      </div>
+      <div class="mermaid-viewport" id="diag-1">
+        <pre class="mermaid">
+classDiagram
+    %% Core Types & Value Objects
+    class Diem2D {
+        -double x
+        -double y
+        +Diem2D()
+        +Diem2D(double x, double y)
+        +getX() double
+        +getY() double
+        +setX(double x) void
+        +setY(double y) void
+        +khoangCach(Diem2D other) double
+        +operator+(Diem2D other) Diem2D
+        +operator-(Diem2D other) Diem2D
+        +operator*(double k) Diem2D
+        +operator==(Diem2D other) bool
+        +operator!=(Diem2D other) bool
+    }
+
+    class MauSac {
+        -int r
+        -int g
+        -int b
+        -int a
+        +MauSac()
+        +MauSac(int r, int g, int b, int a)
+        +getR() int
+        +getG() int
+        +getB() int
+        +getA() int
+        +toHex(bool baoGomAlpha) string
+        +Den() MauSac$
+        +Trang() MauSac$
+        +Do() MauSac$
+        +XanhLa() MauSac$
+        +XanhDuong() MauSac$
+    }
+
+    class BienDoi2D {
+        -double m_[3][3]
+        +BienDoi2D()
+        +tinhTien(double dx, double dy) BienDoi2D$
+        +xoay(double gocDo, Diem2D tam) BienDoi2D$
+        +tiLeDeu(double k, Diem2D tam) BienDoi2D$
+        +apDung(Diem2D p) Diem2D
+        +heSoTiLe() double
+        +nghichDao() BienDoi2D
+        +operator*(BienDoi2D other) BienDoi2D
+    }
+
+    %% Shape Hierarchy (Composite Pattern)
+    class HinhHoc2D {
+        <<abstract>>
+        -int demId_$
+        #int id_
+        #MauSac vien_
+        #MauSac nen_
+        #double doDayNet_
+        #HinhHoc2D()
+        #HinhHoc2D(HinhHoc2D other)
+        +~HinhHoc2D()*
+        +getId() int
+        +setMauVien(MauSac m) void
+        +setMauNen(MauSac m) void
+        +setDoDayNet(double d) void
+        +getMauVien() MauSac
+        +getMauNen() MauSac
+        +getDoDayNet() double
+        +ve(ostream os)* void
+        +tam()* Diem2D
+        +tinhDienTich()* double
+        +tinhChuVi()* double
+        +transform(BienDoi2D bd)* void
+        +clone()* unique_ptr~HinhHoc2D~
+        +toSVG()* string
+    }
+
+    class DoanThang {
+        -Diem2D p1_
+        -Diem2D p2_
+        +DoanThang(Diem2D p1, Diem2D p2)
+        +getDiem1() Diem2D
+        +getDiem2() Diem2D
+        +ve(ostream os) void
+        +tam() Diem2D
+        +tinhDienTich() double
+        +tinhChuVi() double
+        +transform(BienDoi2D bd) void
+        +clone() unique_ptr~HinhHoc2D~
+        +toSVG() string
+    }
+
+    class HinhTron {
+        -Diem2D tam_
+        -double banKinh_
+        +HinhTron(Diem2D tam, double banKinh)
+        +getTam() Diem2D
+        +getBanKinh() double
+        +ve(ostream os) void
+        +tam() Diem2D
+        +tinhDienTich() double
+        +tinhChuVi() double
+        +transform(BienDoi2D bd) void
+        +clone() unique_ptr~HinhHoc2D~
+        +toSVG() string
+    }
+
+    class HinhChuNhat {
+        -Diem2D dinh_[4]
+        +HinhChuNhat(Diem2D gocTrenTrai, double w, double h)
+        +getDinh() array~Diem2D_4~
+        +ve(ostream os) void
+        +tam() Diem2D
+        +tinhDienTich() double
+        +tinhChuVi() double
+        +transform(BienDoi2D bd) void
+        +clone() unique_ptr~HinhHoc2D~
+        +toSVG() string
+    }
+
+    class TamGiac {
+        -Diem2D dinh_[3]
+        +TamGiac(Diem2D d1, Diem2D d2, Diem2D d3)
+        +getDinh() array~Diem2D_3~
+        +ve(ostream os) void
+        +tam() Diem2D
+        +tinhDienTich() double
+        +tinhChuVi() double
+        +transform(BienDoi2D bd) void
+        +clone() unique_ptr~HinhHoc2D~
+        +toSVG() string
+    }
+
+    class DaGiac {
+        -vector~Diem2D~ dinh_
+        +DaGiac(vector~Diem2D~ dinh)
+        +themDinh(Diem2D d) void
+        +getDinh() vector~Diem2D~
+        +ve(ostream os) void
+        +tam() Diem2D
+        +tinhDienTich() double
+        +tinhChuVi() double
+        +transform(BienDoi2D bd) void
+        +clone() unique_ptr~HinhHoc2D~
+        +toSVG() string
+    }
+
+    class NetVeTuDo {
+        -vector~Diem2D~ diem_
+        +NetVeTuDo(vector~Diem2D~ diem)
+        +getDiem() vector~Diem2D~
+        +ve(ostream os) void
+        +tam() Diem2D
+        +tinhDienTich() double
+        +tinhChuVi() double
+        +transform(BienDoi2D bd) void
+        +clone() unique_ptr~HinhHoc2D~
+        +toSVG() string
+    }
+
+    class GroupShape {
+        -vector~unique_ptr~HinhHoc2D~~ danhSachCon_
+        +GroupShape()
+        +themHinh(unique_ptr~HinhHoc2D~ hinh) void
+        +rutHinh(int id) unique_ptr~HinhHoc2D~
+        +soLuongCon() size_t
+        +timHinhCon(int id) HinhHoc2D*
+        +chuaHinh(int id) bool
+        +ve(ostream os) void
+        +tam() Diem2D
+        +tinhDienTich() double
+        +tinhChuVi() double
+        +transform(BienDoi2D bd) void
+        +clone() unique_ptr~HinhHoc2D~
+        +toSVG() string
+    }
+
+    class ShapeFactory {
+        +taoHinh(string moTa)$ unique_ptr~HinhHoc2D~
+    }
+
+    %% Canvas & Layer
+    class Layer {
+        -string ten_
+        -bool hien_
+        -bool khoa_
+        -vector~unique_ptr~HinhHoc2D~~ hinh_
+        +Layer(string ten)
+        +themHinh(unique_ptr~HinhHoc2D~ h, size_t viTri) void
+        +layHinh(int id) unique_ptr~HinhHoc2D~
+        +timTheoId(int id) HinhHoc2D*
+        +viTriTheoId(int id) size_t
+        +hinhThu(size_t i) HinhHoc2D
+        +soHinh() size_t
+        +getTen() string
+        +setTen(string ten) void
+        +isHien() bool
+        +setHien(bool b) void
+        +isKhoa() bool
+        +setKhoa(bool b) void
+    }
+
+    class BangVeCanvas {
+        -double rong_
+        -double cao_
+        -deque~Layer~ layers_
+        -size_t layerHienTai_
+        +BangVeCanvas(double rong, double cao)
+        +themLayer(string ten) size_t
+        +layer(size_t i) Layer
+        +soLayer() size_t
+        +getRong() double
+        +getCao() double
+        +timHinh(int id) HinhHoc2D*
+        +layerChuaHinh(int id) size_t
+    }
+
+    %% Command Pattern
+    class Command {
+        <<abstract>>
+        +~Command()*
+        +execute()* void
+        +undo()* void
+    }
+
+    class AddShapeCommand {
+        -BangVeCanvas& canvas_
+        -size_t layerIdx_
+        -int id_
+        -unique_ptr~HinhHoc2D~ hinh_
+        +AddShapeCommand(BangVeCanvas cv, size_t layerIdx, unique_ptr~HinhHoc2D~ h)
+        +execute() void
+        +undo() void
+    }
+
+    class RemoveShapeCommand {
+        -BangVeCanvas& canvas_
+        -size_t layerIdx_
+        -int id_
+        -size_t viTri_
+        -unique_ptr~HinhHoc2D~ hinh_
+        +RemoveShapeCommand(BangVeCanvas cv, size_t layerIdx, int id)
+        +execute() void
+        +undo() void
+    }
+
+    class TransformCommand {
+        -BangVeCanvas& canvas_
+        -size_t layerIdx_
+        -int id_
+        -BienDoi2D bienDoi_
+        -BienDoi2D nghichDao_
+        +TransformCommand(BangVeCanvas cv, size_t layerIdx, int id, BienDoi2D bd)
+        +execute() void
+        +undo() void
+    }
+
+    class GroupCommand {
+        -BangVeCanvas& canvas_
+        -size_t layerIdx_
+        -Loai loai_
+        -vector~int~ shapeIds_
+        -vector~size_t~ shapePositions_
+        -unique_ptr~GroupShape~ group_
+        -int groupId_
+        -size_t groupPosition_
+        +GroupCommand(BangVeCanvas cv, size_t layerIdx, vector~int~ shapeIds, Loai loai)
+        +execute() void
+        +undo() void
+    }
+
+    class CommandManager {
+        -vector~unique_ptr~Command~~ undoStack_
+        -vector~unique_ptr~Command~~ redoStack_
+        -size_t maxHistorySize_
+        +CommandManager(size_t maxHistory)
+        +thucThi(unique_ptr~Command~ cmd) void
+        +coTheUndo() bool
+        +coTheRedo() bool
+        +undo() bool
+        +redo() bool
+        +xoaLichSu() void
+    }
+
+    %% Controller & I/O
+    class MenuController {
+        -BangVeCanvas& canvas_
+        -CommandManager& cmdMgr_
+        -size_t layerHienTai_
+        +MenuController(BangVeCanvas cv, CommandManager mgr)
+        +chay() void
+        -xuLyThemHinh() void
+        -xuLyXoaHinh() void
+        -xuLyBienDoiHinh() void
+        -xuLyGomNhom() void
+        -xuLyUndo() void
+        -xuLyRedo() void
+        -xuLyXuatSVG() void
+    }
+
+    class SvgExporter {
+        -double width_
+        -double height_
+        +SvgExporter(double w, double h)
+        +xuatFile(BangVeCanvas canvas, string duongDan) bool
+        +taoChuoiSVG(BangVeCanvas canvas) string
+    }
+
+    class TextSerializer {
+        +ghiFile(BangVeCanvas canvas, string duongDan)$ bool
+        +docFile(BangVeCanvas canvas, string duongDan)$ bool
+        +serialize(BangVeCanvas canvas, ostream os)$ void
+        +deserialize(BangVeCanvas canvas, istream is)$ void
+    }
+
+    %% Inheritance (Generalization)
+    HinhHoc2D <|-- DoanThang
+    HinhHoc2D <|-- HinhTron
+    HinhHoc2D <|-- HinhChuNhat
+    HinhHoc2D <|-- TamGiac
+    HinhHoc2D <|-- DaGiac
+    HinhHoc2D <|-- NetVeTuDo
+    HinhHoc2D <|-- GroupShape
+
+    Command <|-- AddShapeCommand
+    Command <|-- RemoveShapeCommand
+    Command <|-- TransformCommand
+    Command <|-- GroupCommand
+
+    %% Composition & Aggregation
+    BangVeCanvas *-- Layer : "Quản lý 1..* Layers"
+    Layer o-- HinhHoc2D : "Sở hữu danh sách hình vẽ"
+    GroupShape o-- HinhHoc2D : "Composite chứa đệ quy 0..* hình con"
+    CommandManager *-- Command : "Chứa 2 ngăn xếp undo/redo"
+
+    %% Associations & Dependencies
+    HinhHoc2D --> MauSac : "Thuộc tính viền, nền"
+    DoanThang *-- Diem2D : "2 điểm mút"
+    HinhTron *-- Diem2D : "Tâm"
+    HinhChuNhat *-- Diem2D : "4 đỉnh"
+    TamGiac *-- Diem2D : "3 đỉnh"
+    DaGiac *-- Diem2D : "Danh sách đỉnh"
+    NetVeTuDo *-- Diem2D : "Danh sách điểm"
+
+    MenuController --> BangVeCanvas : "Tác động trạng thái"
+    MenuController --> CommandManager : "Gửi lệnh thực thi"
+
+    Command ..> BangVeCanvas : "Thao tác trên"
+    TransformCommand --> BienDoi2D : "Giữ phép thuận & nghịch đảo"
+    ShapeFactory ..> HinhHoc2D : "Tạo đối tượng"
+    SvgExporter ..> BangVeCanvas : "Đọc cấu trúc xuất SVG"
+    TextSerializer ..> BangVeCanvas : "Tuần tự hóa / giải tuần tự"
+        </pre>
+      </div>
+    </div>
+
+    <h3>2.1. Phân Tích Chi Tiết Quan Hệ Giữa Các Thực Thể</h3>
+    <ol>
+      <li>
+        <strong>Quan hệ Kế thừa (Inheritance / Generalization <code>&lt;|--</code>):</strong>
+        <p>Các lớp hình học cụ thể (<code>DoanThang</code>, <code>HinhTron</code>, <code>HinhChuNhat</code>, <code>TamGiac</code>, <code>DaGiac</code>, <code>NetVeTuDo</code>, <code>GroupShape</code>) kế thừa từ lớp trừu tượng <code>HinhHoc2D</code>. Tất cả đều phải ghi đè các hàm thuần ảo: <code>tam()</code>, <code>tinhDienTich()</code>, <code>tinhChuVi()</code>, <code>transform()</code>, <code>clone()</code>, <code>ve()</code>, <code>toSVG()</code>. Tương tự, các lệnh thao tác kế thừa từ lớp giao diện thuần ảo <code>Command</code> (<code>execute()</code> và <code>undo()</code>).</p>
+      </li>
+      <li>
+        <strong>Quan hệ Hợp thành & Chứa đựng (Composition <code>*--</code> & Aggregation <code>o--</code>):</strong>
+        <p><code>BangVeCanvas *-- Layer</code>: Một bản vẽ chứa tập hợp tuần tự các Layer. Khi Canvas bị hủy, toàn bộ Layer cũng bị hủy. <code>GroupShape o-- HinhHoc2D</code>: Mắt xích cốt lõi của Composite Pattern, cho phép một GroupShape nắm giữ các hình đơn hoặc GroupShape khác lồng nhau vô hạn.</p>
+      </li>
+      <li>
+        <strong>Quan hệ Phụ thuộc & Hiệp tác (Dependency <code>..&gt;</code> & Association <code>--&gt;</code>):</strong>
+        <p><code>Command</code> chỉ giữ tham chiếu <code>BangVeCanvas&</code> (không sở hữu vòng đời) và xác định đối tượng qua <code>(layerIdx, id)</code> để tránh dangling pointer khi Undo/Redo. <code>TransformCommand</code> giữ ma trận thuận và ma trận nghịch đảo $M^{-1}$ để khôi phục trạng thái tức thời.</p>
+      </li>
+    </ol>
+
+    <hr>
+
+    <h2>3. Sơ Đồ Luồng Hoạt Động Của Hệ Thống (Workflows & Sequence Diagrams)</h2>
+
+    <h3>3.1. Luồng 1: Vòng lặp điều khiển chính CLI (Main Control Loop)</h3>
+    <p>Sơ đồ hoạt động biểu diễn cách <code>MenuController</code> tiếp nhận tương tác người dùng, kiểm tra hợp lệ và điều phối tới các module nghiệp vụ:</p>
+
+    <!-- SƠ ĐỒ 3: VÒNG LẶP CLI -->
+    <div class="diagram-container" id="container-diag-2">
+      <div class="diagram-header">
+        <span class="diagram-caption">Hình 3.1: Sơ đồ hoạt động vòng lặp điều khiển CLI (Main Control Loop)</span>
+        <div class="diagram-actions">
+          <button class="btn-export" onclick="downloadPNG(2, 'Hinh_3_1_CLI_Main_Loop.png')">🖼️ Lưu PNG</button>
+          <button class="btn-export" onclick="downloadSVG(2, 'Hinh_3_1_CLI_Main_Loop.svg')">💾 Lưu SVG</button>
+        </div>
+      </div>
+      <div class="mermaid-viewport" id="diag-2">
+        <pre class="mermaid">
+flowchart TD
+    Start([Bắt đầu chương trình CLI]) --> Init[Khởi tạo BangVeCanvas & CommandManager]
+    Init --> LayerInit[Tạo Layer mặc định: Layer 1]
+    LayerInit --> ShowMenu[Hiển thị Menu chính 11 mục]
+    ShowMenu --> ReadChoice[/Nhập lựa chọn của người dùng/]
+
+    ReadChoice --> CheckChoice{Lựa chọn?}
+
+    CheckChoice -- "1. Quản lý Layer" --> ActLayer[Xem/Tạo/Ẩn/Khóa Layer]
+    CheckChoice -- "2. Thêm hình vẽ" --> ActAdd[Nhập chuỗi mô tả -> ShapeFactory -> AddShapeCommand]
+    CheckChoice -- "3. Xóa hình vẽ" --> ActDel[Kiểm tra ID & Layer khóa -> RemoveShapeCommand]
+    CheckChoice -- "4. Biến đổi hình" --> ActTrf[Nhập tịnh tiến/xoay/scale -> TransformCommand]
+    CheckChoice -- "5. Gom/Rã nhóm" --> ActGrp[Nhập danh sách ID -> GroupCommand]
+    CheckChoice -- "6. Hoàn tác (Undo)" --> ActUndo[CommandManager.undo]
+    CheckChoice -- "7. Làm lại (Redo)" --> ActRedo[CommandManager.redo]
+    CheckChoice -- "8. Xem bảng vẽ" --> ActView[Duyệt in cây đối tượng ra console]
+    CheckChoice -- "9. Xuất file SVG" --> ActSvg[SvgExporter.xuatFile]
+    CheckChoice -- "10/11. File TXT" --> ActTxt[TextSerializer serialize/deserialize]
+    CheckChoice -- "0. Thoát" --> End([Kết thúc chương trình])
+
+    ActLayer --> ShowMenu
+    ActAdd --> ExecCmd[CommandManager.thucThi]
+    ActDel --> ExecCmd
+    ActTrf --> ExecCmd
+    ActGrp --> ExecCmd
+    ExecCmd --> ShowMenu
+    ActUndo --> ShowMenu
+    ActRedo --> ShowMenu
+    ActView --> ShowMenu
+    ActSvg --> ShowMenu
+    ActTxt --> ShowMenu
+        </pre>
+      </div>
+    </div>
+
+    <h3>3.2. Luồng 2: Luồng Thực Thi Thêm Hình & Hoàn Tác/Làm Lại (Undo / Redo Sequence)</h3>
+    <p>Sequence Diagram mô tả chi tiết tương tác bảo toàn ID khi thực thi và hoàn tác giữa <code>MenuController</code>, <code>ShapeFactory</code>, <code>CommandManager</code>, <code>AddShapeCommand</code>, và <code>BangVeCanvas</code>:</p>
+
+    <!-- SƠ ĐỒ 4: UNDO / REDO -->
+    <div class="diagram-container" id="container-diag-3">
+      <div class="diagram-header">
+        <span class="diagram-caption">Hình 3.2: Sequence Diagram chuỗi thao tác Thêm hình và Undo / Redo</span>
+        <div class="diagram-actions">
+          <button class="btn-export" onclick="downloadPNG(3, 'Hinh_3_2_Sequence_Undo_Redo.png')">🖼️ Lưu PNG</button>
+          <button class="btn-export" onclick="downloadSVG(3, 'Hinh_3_2_Sequence_Undo_Redo.svg')">💾 Lưu SVG</button>
+        </div>
+      </div>
+      <div class="mermaid-viewport" id="diag-3">
+        <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor User as Người dùng
+    participant MC as MenuController
+    participant SF as ShapeFactory
+    participant CM as CommandManager
+    participant CMD as AddShapeCommand
+    participant Canvas as BangVeCanvas
+    participant Layer as Layer
+
+    Note over User,Layer: Giai đoạn 1: Thêm hình vẽ mới
+    User->>MC: Nhập lệnh (VD: "tron 400 300 60 vien 255 0 0 net 2")
+    MC->>SF: taoHinh(chuỗi mô tả)
+    SF->>SF: Parse tham số, kiểm tra hợp lệ
+    SF-->>MC: Trả về std::unique_ptr<HinhTron> (id=1)
+    
+    MC->>CMD: Khởi tạo AddShapeCommand(canvas, layerIdx=0, hinh)
+    MC->>CM: thucThi(std::move(cmd))
+    activate CM
+    CM->>CMD: execute()
+    activate CMD
+    CMD->>Canvas: layer(0)
+    Canvas-->>CMD: Layer&
+    CMD->>Layer: themHinh(std::move(hinh_))
+    deactivate CMD
+    CM->>CM: Xóa sạch redoStack_
+    CM->>CM: Đẩy lệnh vào undoStack_
+    CM-->>MC: Hoàn tất
+    deactivate CM
+    MC-->>User: Thông báo: "Thêm hình thành công!"
+
+    Note over User,Layer: Giai đoạn 2: Hoàn tác lệnh vừa thêm (Undo)
+    User->>MC: Chọn menu 6 (Undo)
+    MC->>CM: undo()
+    activate CM
+    CM->>CM: Pop lệnh đỉnh undoStack_
+    CM->>CMD: undo()
+    activate CMD
+    CMD->>Canvas: layer(0)
+    Canvas-->>CMD: Layer&
+    CMD->>Layer: layHinh(id=1)
+    Layer-->>CMD: Trả về unique_ptr<HinhTron> (chuyển giao lại quyền sở hữu)
+    CMD->>CMD: Cất lại vào biến thành viên hinh_ (giữ nguyên ID=1)
+    deactivate CMD
+    CM->>CM: Đẩy lệnh sang redoStack_
+    CM-->>MC: Trả về true
+    deactivate CM
+    MC-->>User: Thông báo: "Đã hoàn tác: hình #1 biến mất"
+
+    Note over User,Layer: Giai đoạn 3: Làm lại lệnh (Redo)
+    User->>MC: Chọn menu 7 (Redo)
+    MC->>CM: redo()
+    activate CM
+    CM->>CM: Pop lệnh đỉnh redoStack_
+    CM->>CMD: execute()
+    activate CMD
+    CMD->>Canvas: layer(0)
+    Canvas-->>CMD: Layer&
+    CMD->>Layer: themHinh(std::move(hinh_))
+    Note right of Layer: Hình được khôi phục vào đúng vị trí với ID nguyên bản
+    deactivate CMD
+    CM->>CM: Đẩy lệnh trở lại undoStack_
+    CM-->>MC: Trả về true
+    deactivate CM
+    MC-->>User: Thông báo: "Đã làm lại: hình #1 xuất hiện trở lại"
+        </pre>
+      </div>
+    </div>
+
+    <h3>3.3. Luồng 3: Biến Đổi Hình Học (Affine Transformation & Inverse Rollback)</h3>
+    <p>Hệ thống xử lý biến đổi hình học qua ma trận affine $3 \times 3$ thuần nhất, đảm bảo tính thuận nghịch tuyệt đối nhờ tính trước ma trận nghịch đảo $M^{-1}$:</p>
+
+    <!-- SƠ ĐỒ 5: BIẾN ĐỔI AFFINE -->
+    <div class="diagram-container" id="container-diag-4">
+      <div class="diagram-header">
+        <span class="diagram-caption">Hình 3.3: Sequence Diagram biến đổi affine và rollback ma trận nghịch đảo</span>
+        <div class="diagram-actions">
+          <button class="btn-export" onclick="downloadPNG(4, 'Hinh_3_3_Sequence_Affine_Transform.png')">🖼️ Lưu PNG</button>
+          <button class="btn-export" onclick="downloadSVG(4, 'Hinh_3_3_Sequence_Affine_Transform.svg')">💾 Lưu SVG</button>
+        </div>
+      </div>
+      <div class="mermaid-viewport" id="diag-4">
+        <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor User as Người dùng
+    participant MC as MenuController
+    participant BD as BienDoi2D
+    participant TC as TransformCommand
+    participant CM as CommandManager
+    participant Shape as HinhHoc2D (Leaf / Group)
+
+    User->>MC: Yêu cầu biến đổi hình (ID, Phép toán: Scale k=1.5 quanh tâm)
+    MC->>MC: Tìm hình theo ID, lấy tâm hình tam = shape->tam()
+    MC->>BD: tiLeDeu(k=1.5, tam)
+    BD-->>MC: Ma trận biến đổi M
+    MC->>TC: Tạo TransformCommand(canvas, layerIdx, id, M)
+    activate TC
+    TC->>BD: M.nghichDao()
+    Note over TC,BD: Tính toán trước ma trận nghịch đảo M_inv = M^-1
+    BD-->>TC: Trả về ma trận nghịch đảo M_inv
+    deactivate TC
+
+    MC->>CM: thucThi(std::move(transformCmd))
+    CM->>TC: execute()
+    TC->>Shape: transform(M)
+    Note over Shape: Điểm/tọa độ được cập nhật: P' = M * P
+    TC-->>CM: Hoàn thành
+
+    opt Người dùng Undo biến đổi
+        User->>MC: Chọn Undo
+        MC->>CM: undo()
+        CM->>TC: undo()
+        TC->>Shape: transform(M_inv)
+        Note over Shape: Áp dụng M_inv: P = M_inv * P' -> Trở về trạng thái ban đầu chính xác
+    end
+        </pre>
+      </div>
+    </div>
+
+    <h3>3.4. Luồng 4: Gom Nhóm & Rã Nhóm Hình Vẽ (Composite & GroupCommand)</h3>
+    <p>Quá trình gom nhóm hình tạo ra cấu trúc phân nhánh cây theo mẫu Composite và hoàn trả đúng vị trí ban đầu khi Undo:</p>
+
+    <!-- SƠ ĐỒ 6: GOM NHÓM COMPOSITE -->
+    <div class="diagram-container" id="container-diag-5">
+      <div class="diagram-header">
+        <span class="diagram-caption">Hình 3.4: Sequence Diagram Gom nhóm và Rã nhóm hình vẽ</span>
+        <div class="diagram-actions">
+          <button class="btn-export" onclick="downloadPNG(5, 'Hinh_3_4_Sequence_Gom_Nhom.png')">🖼️ Lưu PNG</button>
+          <button class="btn-export" onclick="downloadSVG(5, 'Hinh_3_4_Sequence_Gom_Nhom.svg')">💾 Lưu SVG</button>
+        </div>
+      </div>
+      <div class="mermaid-viewport" id="diag-5">
+        <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor User as Người dùng
+    participant MC as MenuController
+    participant GC as GroupCommand
+    participant CM as CommandManager
+    participant Layer as Layer
+    participant GS as GroupShape
+
+    User->>MC: Chọn gom nhóm các hình có ID: [2, 5, 8]
+    MC->>MC: Kiểm tra tính hợp lệ (các ID tồn tại trong Layer, layer không khóa)
+    MC->>GC: Tạo GroupCommand(canvas, layerIdx, shapeIds=[2, 5, 8], Loai::GOM)
+    MC->>CM: thucThi(std::move(groupCmd))
+
+    activate GC
+    CM->>GC: execute()
+    GC->>GS: Khởi tạo GroupShape mới (sinh GroupId mới, vd: #10)
+    loop Với từng id trong [2, 5, 8]
+        GC->>Layer: layHinh(id)
+        Layer-->>GC: std::unique_ptr<HinhHoc2D>
+        GC->>GS: themHinh(std::move(hinhCon))
+    end
+    GC->>Layer: themHinh(std::move(group_)) vào vị trí của hình con đầu tiên
+    deactivate GC
+    CM-->>MC: Gom nhóm hoàn tất
+
+    opt Người dùng Undo Gom Nhóm
+        User->>MC: Chọn Undo
+        MC->>CM: undo()
+        CM->>GC: undo()
+        activate GC
+        GC->>Layer: layHinh(groupId=10)
+        Layer-->>GC: unique_ptr<GroupShape>
+        loop Rút các hình con ra khỏi GroupShape
+            GC->>GS: rutHinh(id)
+            GS-->>GC: unique_ptr<HinhHoc2D>
+            GC->>Layer: themHinh(hinhCon, viTriCu)
+        end
+        Note over Layer: Khôi phục lại đúng vị trí và thứ tự Z-index ban đầu của các hình con
+        deactivate GC
+    end
+        </pre>
+      </div>
+    </div>
+
+    <h3>3.5. Luồng 5: Đồng Bộ Giao Diện Web & C++ Backend Server</h3>
+    <p>Luồng giao tiếp giữa Web Client và C++ Backend Server qua HTTP REST API và tuần tự hóa bản vẽ qua <code>TextSerializer</code>:</p>
+
+    <!-- SƠ ĐỒ 7: ĐỒNG BỘ WEB & SERVER -->
+    <div class="diagram-container" id="container-diag-6">
+      <div class="diagram-header">
+        <span class="diagram-caption">Hình 3.5: Sequence Diagram đồng bộ Web Client và C++ Backend Server</span>
+        <div class="diagram-actions">
+          <button class="btn-export" onclick="downloadPNG(6, 'Hinh_3_5_Sequence_Web_Sync.png')">🖼️ Lưu PNG</button>
+          <button class="btn-export" onclick="downloadSVG(6, 'Hinh_3_5_Sequence_Web_Sync.svg')">💾 Lưu SVG</button>
+        </div>
+      </div>
+      <div class="mermaid-viewport" id="diag-6">
+        <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Browser as Trình duyệt (Web GUI)
+    participant Server as ProjectServer (C++ Socket 8766)
+    participant PM as ProjectManager
+    participant UM as UserManager
+    participant Canvas as BangVeCanvas
+    participant TS as TextSerializer
+
+    Note over Browser,TS: Đăng nhập & Lấy phiên làm việc
+    Browser->>Server: POST /api/login { username, password }
+    Server->>UM: loginUser(username, password)
+    UM-->>Server: Token hợp lệ + UserAccount
+    Server-->>Browser: HTTP 200 { token, username, fullName }
+
+    Note over Browser,TS: Mở dự án & Tải bản vẽ
+    Browser->>Server: GET /api/projects/:id (Header: Authorization Bearer token)
+    Server->>UM: validateToken(token)
+    UM-->>Server: User hợp lệ
+    Server->>PM: getProject(projectId)
+    PM->>PM: Kiểm tra quyền truy cập (owner hoặc member)
+    PM-->>Server: ProjectItem (chứa BangVeCanvas)
+    Server->>TS: serialize(canvas, stream)
+    TS-->>Server: Dữ liệu văn bản bản vẽ (TXT format)
+    Server-->>Browser: HTTP 200 { id, name, revision, canvasText }
+
+    Note over Browser,TS: Người dùng vẽ trên Web & Đồng bộ lại Server
+    Browser->>Browser: Người dùng thao tác vẽ/chỉnh sửa trên HTML5 Canvas
+    Browser->>Server: POST /api/projects/:id/sync { token, canvasText }
+    Server->>UM: validateToken(token)
+    Server->>PM: getProject(projectId)
+    Server->>TS: deserialize(project->canvas, stream)
+    TS->>Canvas: Tái tạo toàn bộ danh sách Layer & HinhHoc2D
+    Server->>PM: saveProjectCanvas(project)
+    PM->>PM: Ghi file lưu trữ đĩa (output/projects/:id.txt)
+    Server-->>Browser: HTTP 200 { status: "ok", revision: ++rev }
+        </pre>
+      </div>
+    </div>
+
+    <hr>
+
+    <h2>4. Bảng Đối Chiếu Các Thực Thể & Trách Nhiệm Thiết Kế</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Tầng kiến trúc</th>
+          <th>Lớp / Cấu trúc</th>
+          <th>Kiểu thực thể</th>
+          <th>Trách nhiệm chính trong hệ thống</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Core</strong></td>
+          <td><code>Diem2D</code></td>
+          <td>Value Object</td>
+          <td>Tọa độ điểm 2D (x, y), các phép toán vector (+, -, *) và tính khoảng cách Euclid.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>MauSac</code></td>
+          <td>Value Object</td>
+          <td>Màu RGBA với độ trong suốt alpha, chuyển đổi chuỗi mã màu hex (#RRGGBBAA).</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>BienDoi2D</code></td>
+          <td>Value Object</td>
+          <td>Ma trận affine 3x3, tạo phép tịnh tiến, xoay quanh tâm, tỉ lệ đều và tính ma trận nghịch đảo.</td>
+        </tr>
+        <tr>
+          <td><strong>Shapes</strong></td>
+          <td><code>HinhHoc2D</code></td>
+          <td>Abstract Component</td>
+          <td>Định nghĩa giao diện chung cho mọi hình học; quản lý ID duy nhất toàn cục, màu viền, màu nền, độ dày nét; hỗ trợ clone() và toSVG().</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>DoanThang</code></td>
+          <td>Concrete Leaf</td>
+          <td>Biểu diễn đoạn thẳng giữa 2 điểm. Diện tích = 0.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>HinhTron</code></td>
+          <td>Concrete Leaf</td>
+          <td>Biểu diễn hình tròn với tâm và bán kính; scale giữ nguyên tỉ lệ tròn.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>HinhChuNhat</code></td>
+          <td>Concrete Leaf</td>
+          <td>Hình chữ nhật xác định qua 4 đỉnh; hỗ trợ tính tâm hộp bao và xoay affine tự do.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>TamGiac</code></td>
+          <td>Concrete Leaf</td>
+          <td>Tam giác xác định bởi 3 điểm; tính diện tích bằng giải thuật vector chéo.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>DaGiac</code></td>
+          <td>Concrete Leaf</td>
+          <td>Đa giác khép kín n đỉnh; tính diện tích Shoelace và tâm bounding box.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>NetVeTuDo</code></td>
+          <td>Concrete Leaf</td>
+          <td>Chuỗi các điểm di chuột liên tục; phục vụ vẽ tự do / bút chì.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>GroupShape</code></td>
+          <td>Composite</td>
+          <td>Gom nhóm nhiều đối tượng HinhHoc2D con; chuyển tiếp đệ quy các lệnh tính toán và biến đổi.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>ShapeFactory</code></td>
+          <td>Factory</td>
+          <td>Phân tích cú pháp chuỗi câu lệnh để khởi tạo đối tượng hình học tương ứng.</td>
+        </tr>
+        <tr>
+          <td><strong>Canvas</strong></td>
+          <td><code>Layer</code></td>
+          <td>Entity Container</td>
+          <td>Quản lý tập hợp hình vẽ trong một lớp; hỗ trợ ẩn/hiện, khóa/mở khóa chỉnh sửa.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>BangVeCanvas</code></td>
+          <td>Aggregate Root</td>
+          <td>Quản lý toàn bộ danh sách các Layer, kích thước bản vẽ (w x h) và layer hoạt động hiện tại.</td>
+        </tr>
+        <tr>
+          <td><strong>Commands</strong></td>
+          <td><code>Command</code></td>
+          <td>Abstract Command</td>
+          <td>Định nghĩa hợp đồng execute() và undo().</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>AddShapeCommand</code></td>
+          <td>Concrete Command</td>
+          <td>Thêm hình vào layer; undo sẽ rút hình ra cất lại.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>RemoveShapeCommand</code></td>
+          <td>Concrete Command</td>
+          <td>Xóa hình khỏi layer; undo sẽ hoàn trả hình vào đúng chỉ số vị trí cũ.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>TransformCommand</code></td>
+          <td>Concrete Command</td>
+          <td>Biến đổi hình bằng ma trận M; undo bằng cách áp dụng ma trận nghịch đảo M^-1.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>GroupCommand</code></td>
+          <td>Concrete Command</td>
+          <td>Gom các hình con thành GroupShape; undo sẽ giải tán nhóm và trả lại các hình con.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>CommandManager</code></td>
+          <td>Invoker</td>
+          <td>Điều khiển 2 ngăn xếp undoStack_ và redoStack_, giới hạn kích thước lịch sử.</td>
+        </tr>
+        <tr>
+          <td><strong>Controller & I/O</strong></td>
+          <td><code>MenuController</code></td>
+          <td>Controller</td>
+          <td>Nhận lệnh console, kiểm tra điều kiện nghiệp vụ và gọi CommandManager.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>SvgExporter</code></td>
+          <td>Service / Exporter</td>
+          <td>Xuất toàn bộ cấu trúc bản vẽ ra chuẩn định dạng XML SVG.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>TextSerializer</code></td>
+          <td>Service / Serializer</td>
+          <td>Tuần tự hóa bản vẽ ra định dạng text .txt để lưu trữ bền vững và giải tuần tự khi nạp.</td>
+        </tr>
+        <tr>
+          <td><strong>Web & Auth</strong></td>
+          <td><code>ProjectServer</code></td>
+          <td>HTTP Server</td>
+          <td>Socket server lắng nghe cổng 8766, điều hướng các REST endpoint cho Web GUI.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>UserManager</code></td>
+          <td>Service</td>
+          <td>Băm mật khẩu (SHA-256 + Salt), cấp phát và kiểm tra token phiên làm việc.</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><code>ProjectManager</code></td>
+          <td>Repository / Service</td>
+          <td>Quản lý dự án đa người dùng, cấp quyền cộng tác viên và lưu file dự án.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr>
+
+    <h2>5. Kết Luận & Đánh Giá Đáp Ứng Yêu Cầu Task 22</h2>
+    <ul>
+      <li><strong>Tính đầy đủ (Completeness):</strong> Sơ đồ lớp UML bao phủ toàn diện 100% các thành phần cốt lõi của mã nguồn C++ thực tế trong dự án (Core, Shapes, Canvas, Commands, I/O, Controller, Auth/Web Server).</li>
+      <li><strong>Tính chuẩn mực (Correctness):</strong> Sử dụng chuẩn ký hiệu UML 2.0 (thuộc tính, kiểu dữ liệu, phương thức, độ hiển thị, quan hệ kế thừa, hợp thành, kết tập, phụ thuộc).</li>
+      <li><strong>Độ tin cậy của luồng hoạt động (Operational Flow):</strong> Mô tả rõ nét cơ chế vận hành từ khâu nhập lệnh, qua tầng Factory, đóng gói thành Command, lưu vết trong CommandManager cho đến lúc cập nhật trạng thái bản vẽ hoặc hoàn tác bằng đại số ma trận.</li>
+    </ul>
+  </div>
+
+  <script>
+    // Khởi tạo Mermaid với theme sáng chuyên nghiệp cho tài liệu Word/Báo cáo
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      securityLevel: 'loose',
+      fontFamily: '"Segoe UI", Calibri, Arial, sans-serif'
+    });
+
+    function downloadSVG(idx, filename) {
+      const container = document.getElementById('diag-' + idx);
+      const svg = container.querySelector('svg');
+      if (!svg) {
+        alert('Sơ đồ đang được vẽ, vui lòng thử lại sau giây lát!');
+        return;
+      }
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function downloadPNG(idx, filename) {
+      const container = document.getElementById('diag-' + idx);
+      const svg = container.querySelector('svg');
+      if (!svg) {
+        alert('Sơ đồ đang được vẽ, vui lòng thử lại sau giây lát!');
+        return;
+      }
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const URLObj = window.URL || window.webkitURL || window;
+      const blobURL = URLObj.createObjectURL(svgBlob);
+      
+      const image = new Image();
+      image.onload = function() {
+        const canvas = document.createElement('canvas');
+        const scale = 2; // Độ phân giải siêu nét x2 để dán vào Word không bị mờ
+        const bBox = svg.getBoundingClientRect();
+        canvas.width = (bBox.width || image.width || 1200) * scale;
+        canvas.height = (bBox.height || image.height || 800) * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff'; // Nền trắng trang giấy Word
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob(function(blob) {
+          const a = document.createElement('a');
+          a.href = URLObj.createObjectURL(blob);
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URLObj.revokeObjectURL(blobURL);
+        }, 'image/png');
+      };
+      image.src = blobURL;
+    }
+  </script>
+</body>
+</html>

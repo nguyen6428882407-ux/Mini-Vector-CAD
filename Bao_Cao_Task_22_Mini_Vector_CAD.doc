@@ -1,0 +1,459 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office'
+      xmlns:w='urn:schemas-microsoft-com:office:word'
+      xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>Báo Cáo Task 22 - Mini Vector CAD</title>
+<!--[if gte mso 9]>
+<xml>
+ <w:WordDocument>
+  <w:View>Print</w:View>
+  <w:Zoom>100</w:Zoom>
+  <w:DoNotOptimizeForBrowser/>
+ </w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+@page Section1 {
+    size: 21.0cm 29.7cm; /* Khổ giấy A4 chuẩn */
+    margin: 2.5cm 2.0cm 2.5cm 2.5cm; /* Lề: Trên 2.5cm, Phải 2.0cm, Dưới 2.5cm, Trái 2.5cm */
+    mso-header-margin: 36.0pt;
+    mso-footer-margin: 36.0pt;
+    mso-paper-source: 0;
+}
+div.Section1 {
+    page: Section1;
+}
+body {
+    font-family: "Times New Roman", Times, serif;
+    font-size: 13pt;
+    line-height: 1.45;
+    color: #111827;
+}
+h1.doc-title {
+    font-size: 18pt;
+    font-weight: bold;
+    color: #1e3a8a;
+    text-align: center;
+    margin-top: 14pt;
+    margin-bottom: 18pt;
+    text-transform: uppercase;
+}
+.callout {
+    background-color: #f0f7ff;
+    border-left: 4.5pt solid #1d4ed8;
+    padding: 8pt 14pt;
+    margin-top: 10pt;
+    margin-bottom: 18pt;
+    font-size: 12pt;
+    color: #1e293b;
+}
+.callout p {
+    margin: 3pt 0;
+}
+h2 {
+    font-size: 15pt;
+    font-weight: bold;
+    color: #0f172a;
+    margin-top: 18pt;
+    margin-bottom: 8pt;
+    border-bottom: 1.5pt solid #cbd5e1;
+    padding-bottom: 4pt;
+}
+h3 {
+    font-size: 13pt;
+    font-weight: bold;
+    color: #1e40af;
+    margin-top: 14pt;
+    margin-bottom: 6pt;
+}
+p {
+    margin-top: 0pt;
+    margin-bottom: 7pt;
+    text-align: justify;
+}
+ol, ul {
+    margin-top: 0pt;
+    margin-bottom: 8pt;
+    padding-left: 24pt;
+}
+li {
+    margin-bottom: 4pt;
+    text-align: justify;
+}
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 10pt;
+    margin-bottom: 16pt;
+}
+th, td {
+    border: 1pt solid #475569;
+    padding: 6pt 8pt;
+    font-size: 11pt;
+    text-align: left;
+    vertical-align: top;
+}
+th {
+    background-color: #f1f5f9;
+    font-weight: bold;
+    color: #0f172a;
+}
+code {
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 11pt;
+    background-color: #f1f5f9;
+    padding: 1pt 3pt;
+}
+.placeholder-box {
+    border: 2pt dashed #2563eb;
+    background-color: #eff6ff;
+    padding: 22pt 16pt;
+    text-align: center;
+    margin-top: 12pt;
+    margin-bottom: 14pt;
+}
+.placeholder-title {
+    font-weight: bold;
+    font-size: 12pt;
+    color: #1d4ed8;
+    margin-bottom: 4pt;
+}
+.placeholder-sub {
+    font-size: 11pt;
+    color: #64748b;
+    font-style: italic;
+}
+hr {
+    border: 0;
+    height: 1pt;
+    background-color: #cbd5e1;
+    margin: 16pt 0;
+}
+</style>
+</head>
+<body>
+<div class="Section1">
+
+<h1 class="doc-title">Phân Tích Kiến Trúc Dự Án Mini Vector CAD & Thiết Kế UML (Task 22)</h1>
+
+<div class="callout">
+    <p><strong>Tài liệu bàn giao:</strong> Task 22 - Thiết kế sơ đồ lớp UML (Class Diagram) & Phân tích luồng hoạt động hệ thống.</p>
+    <p><strong>Dự án:</strong> Mini Vector CAD (C++17, CLI & Web/C++ Server).</p>
+    <p><strong>Mục tiêu:</strong> Mô tả cấu trúc tĩnh, mối quan hệ giữa các thực thể cốt lõi và các luồng hoạt động (Activity / Sequence) của hệ thống.</p>
+</div>
+
+<hr>
+
+<h2>1. Phân Tích Tổng Quan Dự Án & Kiến Trúc Phần Mềm</h2>
+
+<h3>1.1. Mục tiêu và phạm vi hệ thống</h3>
+<p>
+    <strong>Mini Vector CAD</strong> là ứng dụng đồ họa vector 2D được viết bằng <strong>C++17</strong>, hỗ trợ quản lý bản vẽ theo nhiều lớp (layers), vẽ và biến đổi các hình học cơ bản/phức tạp, cơ chế Hoàn tác/Làm lại (Undo/Redo), xuất/nhập file văn bản thuần (.txt) và đồ họa vector chuẩn SVG. Hệ thống cung cấp hai môi trường hoạt động:
+</p>
+<ol>
+    <li><strong>Giao diện dòng lệnh tương tác (CLI):</strong> Điều phối bởi <code>MenuController</code> phục vụ người dùng console.</li>
+    <li><strong>Giao diện Web & C++ Backend Server:</strong> Kết nối qua HTTP Socket Server cục bộ (<code>ProjectServer</code>), tích hợp hệ thống xác thực người dùng (<code>UserManager</code>) và quản lý dự án bản vẽ (<code>ProjectManager</code>).</li>
+</ol>
+
+<!-- KHUNG CHỖ CHÈN HÌNH 1.1 -->
+<div class="placeholder-box">
+    <div class="placeholder-title">[ CHỖ CHÈN HÌNH 1.1: SƠ ĐỒ KIẾN TRÚC PHÂN TẦNG TỔNG THỂ HỆ THỐNG ]</div>
+    <div class="placeholder-sub">(Bạn dán hình ảnh flowchart kiến trúc phân tầng vào vị trí này)</div>
+</div>
+
+<h3>1.2. Các Design Pattern Cốt Lõi Được Áp Dụng</h3>
+<table>
+    <thead>
+        <tr>
+            <th style="width: 25%;">Design Pattern</th>
+            <th style="width: 30%;">Lớp tham gia</th>
+            <th style="width: 45%;">Mục đích và vai trò trong hệ thống</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Composite Pattern</strong></td>
+            <td><code>HinhHoc2D</code> (Component), <code>GroupShape</code> (Composite), <code>HinhTron</code>, <code>DoanThang</code>, <code>HinhChuNhat</code>, <code>TamGiac</code>, <code>DaGiac</code>, <code>NetVeTuDo</code> (Leafs)</td>
+            <td>Xử lý hình đơn lẻ và nhóm hình phức hợp một cách đồng nhất. <code>GroupShape</code> có thể chứa các hình đơn hoặc các <code>GroupShape</code> con lồng nhau vô hạn theo cấu trúc cây (Tree structure). Khi gọi <code>tinhDienTich()</code>, <code>tinhChuVi()</code>, <code>transform()</code>, <code>ve()</code>, <code>toSVG()</code>, đối tượng composite tự động đệ quy xuống các lá.</td>
+        </tr>
+        <tr>
+            <td><strong>Prototype Pattern</strong></td>
+            <td><code>HinhHoc2D::clone()</code>, các lớp hình cụ thể</td>
+            <td>Cung cấp khả năng sao chép sâu (deep copy) đối tượng hình học mà không cần biết kiểu cụ thể. Điểm đặc biệt của hệ thống: <code>clone()</code> sao chép kiểu dáng (stroke, fill, nét) nhưng <strong>cấp phát ID duy nhất mới</strong>, bảo đảm bất biến tính toàn vẹn định danh.</td>
+        </tr>
+        <tr>
+            <td><strong>Command Pattern</strong></td>
+            <td><code>Command</code> (Interface), <code>CommandManager</code> (Invoker), <code>AddShapeCommand</code>, <code>RemoveShapeCommand</code>, <code>TransformCommand</code>, <code>GroupCommand</code> (Concrete Commands), <code>BangVeCanvas</code> (Receiver)</td>
+            <td>Đóng gói mọi thao tác thay đổi bản vẽ thành đối tượng lệnh có khả năng thực thi (<code>execute()</code>) và hoàn tác (<code>undo()</code>). Sử dụng 2 ngăn xếp <code>undoStack_</code> và <code>redoStack_</code>. Hỗ trợ rollback chính xác mà vẫn bảo toàn ID gốc để không làm gãy chuỗi lệnh phía sau.</td>
+        </tr>
+        <tr>
+            <td><strong>Simple Factory / Factory Method</strong></td>
+            <td><code>ShapeFactory</code></td>
+            <td>Phân tích chuỗi mô tả (từ CLI hoặc file TXT) để sinh đối tượng hình học tương ứng (<code>tron</code>, <code>doanthang</code>, <code>chunhat</code>, <code>tamgiac</code>, <code>dagiac</code>, <code>brush</code>), tách biệt hoàn toàn logic khởi tạo và kiểm tra dữ liệu đầu vào khỏi các lớp nghiệp vụ.</td>
+        </tr>
+    </tbody>
+</table>
+
+<hr>
+
+<h2>2. Thiết Kế Sơ Đồ Lớp UML (Task 22 - Class Diagram)</h2>
+<p>
+    Dưới đây là sơ đồ lớp chi tiết của hệ thống mô tả cấu trúc tĩnh và mối quan hệ giữa các thực thể cốt lõi theo đúng yêu cầu bàn giao của Task 22:
+</p>
+
+<!-- KHUNG CHỖ CHÈN HÌNH 2.1 -->
+<div class="placeholder-box" style="padding: 35pt 16pt;">
+    <div class="placeholder-title">[ CHỖ CHÈN HÌNH 2.1: SƠ ĐỒ LỚP UML CHI TIẾT TOÀN HỆ THỐNG (TASK 22 - CLASS DIAGRAM) ]</div>
+    <div class="placeholder-sub">(Bạn dán hình ảnh Sơ đồ lớp UML hệ thống vào vị trí này)</div>
+</div>
+
+<h3>2.1. Phân Tích Chi Tiết Quan Hệ Giữa Các Thực Thể</h3>
+<ol>
+    <li>
+        <strong>Quan hệ Kế thừa (Inheritance / Generalization):</strong>
+        <p>Các lớp hình học cụ thể (<code>DoanThang</code>, <code>HinhTron</code>, <code>HinhChuNhat</code>, <code>TamGiac</code>, <code>DaGiac</code>, <code>NetVeTuDo</code>, <code>GroupShape</code>) kế thừa từ lớp trừu tượng <code>HinhHoc2D</code>. Tất cả đều phải ghi đè các hàm thuần ảo: <code>tam()</code>, <code>tinhDienTich()</code>, <code>tinhChuVi()</code>, <code>transform()</code>, <code>clone()</code>, <code>ve()</code>, <code>toSVG()</code>. Tương tự, các lệnh thao tác (<code>AddShapeCommand</code>, <code>RemoveShapeCommand</code>, <code>TransformCommand</code>, <code>GroupCommand</code>) kế thừa từ lớp giao diện thuần ảo <code>Command</code> (<code>execute()</code> và <code>undo()</code>).</p>
+    </li>
+    <li>
+        <strong>Quan hệ Hợp thành & Chứa đựng (Composition & Aggregation):</strong>
+        <p><code>BangVeCanvas *-- Layer</code>: Một bản vẽ chứa tập hợp tuần tự các <code>Layer</code> (<code>std::deque&lt;Layer&gt;</code>). Khi <code>BangVeCanvas</code> bị hủy, toàn bộ các <code>Layer</code> cũng bị hủy. <code>Layer o-- HinhHoc2D</code>: Mỗi layer sở hữu độc quyền một danh sách con trỏ thông minh <code>std::vector&lt;std::unique_ptr&lt;HinhHoc2D&gt;&gt;</code>. <code>GroupShape o-- HinhHoc2D</code>: Mắt xích cốt lõi của Composite Pattern, cho phép một GroupShape nắm giữ các hình đơn hoặc GroupShape khác lồng nhau vô hạn.</p>
+    </li>
+    <li>
+        <strong>Quan hệ Phụ thuộc & Hiệp tác (Dependency & Association):</strong>
+        <p><code>Command</code> chỉ giữ tham chiếu <code>BangVeCanvas&</code> (không sở hữu vòng đời) và chỉ định vị hình bằng <code>(layerIdx, id)</code> để tránh dangling pointer khi Undo/Redo. <code>TransformCommand</code> lưu trữ ma trận affine 3x3 thuận và ma trận nghịch đảo $M^{-1}$ để khôi phục trạng thái tức thời khi hoàn tác.</p>
+    </li>
+</ol>
+
+<hr>
+
+<h2>3. Sơ Đồ Luồng Hoạt Động Của Hệ Thống (Workflows & Sequence Diagrams)</h2>
+
+<h3>3.1. Luồng 1: Vòng lặp điều khiển chính CLI (Main Control Loop)</h3>
+<p>Sơ đồ hoạt động biểu diễn cách <code>MenuController</code> tiếp nhận tương tác người dùng, kiểm tra hợp lệ và điều phối tới các module nghiệp vụ:</p>
+
+<!-- KHUNG CHỖ CHÈN HÌNH 3.1 -->
+<div class="placeholder-box">
+    <div class="placeholder-title">[ CHỖ CHÈN HÌNH 3.1: SƠ ĐỒ HOẠT ĐỘNG VÒNG LẶP ĐIỀU KHIỂN CLI (MAIN CONTROL LOOP) ]</div>
+    <div class="placeholder-sub">(Bạn dán hình ảnh flowchart vòng lặp CLI vào vị trí này)</div>
+</div>
+
+<h3>3.2. Luồng 2: Luồng Thực Thi Thêm Hình & Hoàn Tác/Làm Lại (Undo / Redo Sequence)</h3>
+<p>Sequence Diagram mô tả chi tiết tương tác bảo toàn ID khi thực thi và hoàn tác giữa <code>MenuController</code>, <code>ShapeFactory</code>, <code>CommandManager</code>, <code>AddShapeCommand</code>, và <code>BangVeCanvas</code>:</p>
+
+<!-- KHUNG CHỖ CHÈN HÌNH 3.2 -->
+<div class="placeholder-box">
+    <div class="placeholder-title">[ CHỖ CHÈN HÌNH 3.2: SEQUENCE DIAGRAM THAO TÁC THÊM HÌNH VÀ HOÀN TÁC (UNDO / REDO) ]</div>
+    <div class="placeholder-sub">(Bạn dán hình ảnh Sequence Diagram Thêm hình & Undo/Redo vào vị trí này)</div>
+</div>
+
+<h3>3.3. Luồng 3: Biến Đổi Hình Học (Affine Transformation & Inverse Rollback)</h3>
+<p>Hệ thống xử lý biến đổi hình học qua ma trận affine 3x3 thuần nhất, đảm bảo tính thuận nghịch tuyệt đối nhờ tính trước ma trận nghịch đảo $M^{-1}$:</p>
+
+<!-- KHUNG CHỖ CHÈN HÌNH 3.3 -->
+<div class="placeholder-box">
+    <div class="placeholder-title">[ CHỖ CHÈN HÌNH 3.3: SEQUENCE DIAGRAM BIẾN ĐỔI AFFINE & MA TRẬN NGHỊCH ĐẢO ]</div>
+    <div class="placeholder-sub">(Bạn dán hình ảnh Sequence Diagram Biến đổi Affine vào vị trí này)</div>
+</div>
+
+<h3>3.4. Luồng 4: Gom Nhóm & Rã Nhóm Hình Vẽ (Composite & GroupCommand)</h3>
+<p>Quá trình gom nhóm hình tạo ra cấu trúc phân nhánh cây theo mẫu Composite và hoàn trả đúng vị trí ban đầu khi Undo:</p>
+
+<!-- KHUNG CHỖ CHÈN HÌNH 3.4 -->
+<div class="placeholder-box">
+    <div class="placeholder-title">[ CHỖ CHÈN HÌNH 3.4: SEQUENCE DIAGRAM GOM NHÓM VÀ RÃ NHÓM HÌNH VẼ (COMPOSITE) ]</div>
+    <div class="placeholder-sub">(Bạn dán hình ảnh Sequence Diagram Gom nhóm vào vị trí này)</div>
+</div>
+
+<h3>3.5. Luồng 5: Đồng Bộ Giao Diện Web & C++ Backend Server</h3>
+<p>Luồng giao tiếp giữa Web Client và C++ Backend Server qua HTTP REST API và tuần tự hóa bản vẽ qua <code>TextSerializer</code>:</p>
+
+<!-- KHUNG CHỖ CHÈN HÌNH 3.5 -->
+<div class="placeholder-box">
+    <div class="placeholder-title">[ CHỖ CHÈN HÌNH 3.5: SEQUENCE DIAGRAM ĐỒNG BỘ WEB CLIENT VÀ C++ BACKEND SERVER ]</div>
+    <div class="placeholder-sub">(Bạn dán hình ảnh Sequence Diagram Web & Server vào vị trí này)</div>
+</div>
+
+<hr>
+
+<h2>4. Bảng Đối Chiếu Các Thực Thể & Trách Nhiệm Thiết Kế</h2>
+<table>
+    <thead>
+        <tr>
+            <th style="width: 18%;">Tầng kiến trúc</th>
+            <th style="width: 20%;">Lớp / Cấu trúc</th>
+            <th style="width: 18%;">Kiểu thực thể</th>
+            <th style="width: 44%;">Trách nhiệm chính trong hệ thống</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Core</strong></td>
+            <td><code>Diem2D</code></td>
+            <td>Value Object</td>
+            <td>Tọa độ điểm 2D (x, y), các phép toán vector (+, -, *) và tính khoảng cách Euclid.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>MauSac</code></td>
+            <td>Value Object</td>
+            <td>Màu RGBA với độ trong suốt alpha, chuyển đổi chuỗi mã màu hex (#RRGGBBAA).</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>BienDoi2D</code></td>
+            <td>Value Object</td>
+            <td>Ma trận affine 3x3, tạo phép tịnh tiến, xoay quanh tâm, tỉ lệ đều và tính ma trận nghịch đảo.</td>
+        </tr>
+        <tr>
+            <td><strong>Shapes</strong></td>
+            <td><code>HinhHoc2D</code></td>
+            <td>Abstract Component</td>
+            <td>Định nghĩa giao diện chung cho mọi hình học; quản lý ID duy nhất toàn cục, màu viền, màu nền, độ dày nét; hỗ trợ clone() và toSVG().</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>DoanThang</code></td>
+            <td>Concrete Leaf</td>
+            <td>Biểu diễn đoạn thẳng giữa 2 điểm. Diện tích = 0.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>HinhTron</code></td>
+            <td>Concrete Leaf</td>
+            <td>Biểu diễn hình tròn với tâm và bán kính; scale giữ nguyên tỉ lệ tròn.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>HinhChuNhat</code></td>
+            <td>Concrete Leaf</td>
+            <td>Hình chữ nhật xác định qua 4 đỉnh; hỗ trợ tính tâm hộp bao và xoay affine tự do.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>TamGiac</code></td>
+            <td>Concrete Leaf</td>
+            <td>Tam giác xác định bởi 3 điểm; tính diện tích bằng giải thuật vector chéo.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>DaGiac</code></td>
+            <td>Concrete Leaf</td>
+            <td>Đa giác khép kín n đỉnh; tính diện tích Shoelace và tâm bounding box.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>NetVeTuDo</code></td>
+            <td>Concrete Leaf</td>
+            <td>Chuỗi các điểm di chuột liên tục; phục vụ vẽ tự do / bút chì.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>GroupShape</code></td>
+            <td>Composite</td>
+            <td>Gom nhóm nhiều đối tượng HinhHoc2D con; chuyển tiếp đệ quy các lệnh tính toán và biến đổi.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>ShapeFactory</code></td>
+            <td>Factory</td>
+            <td>Phân tích cú pháp chuỗi câu lệnh để khởi tạo đối tượng hình học tương ứng.</td>
+        </tr>
+        <tr>
+            <td><strong>Canvas</strong></td>
+            <td><code>Layer</code></td>
+            <td>Entity Container</td>
+            <td>Quản lý tập hợp hình vẽ trong một lớp; hỗ trợ ẩn/hiện, khóa/mở khóa chỉnh sửa.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>BangVeCanvas</code></td>
+            <td>Aggregate Root</td>
+            <td>Quản lý toàn bộ danh sách các Layer, kích thước bản vẽ (w x h) và layer hoạt động hiện tại.</td>
+        </tr>
+        <tr>
+            <td><strong>Commands</strong></td>
+            <td><code>Command</code></td>
+            <td>Abstract Command</td>
+            <td>Định nghĩa hợp đồng execute() và undo().</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>AddShapeCommand</code></td>
+            <td>Concrete Command</td>
+            <td>Thêm hình vào layer; undo sẽ rút hình ra cất lại.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>RemoveShapeCommand</code></td>
+            <td>Concrete Command</td>
+            <td>Xóa hình khỏi layer; undo sẽ hoàn trả hình vào đúng chỉ số vị trí cũ.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>TransformCommand</code></td>
+            <td>Concrete Command</td>
+            <td>Biến đổi hình bằng ma trận M; undo bằng cách áp dụng ma trận nghịch đảo M^-1.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>GroupCommand</code></td>
+            <td>Concrete Command</td>
+            <td>Gom các hình con thành GroupShape; undo sẽ giải tán nhóm và trả lại các hình con.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>CommandManager</code></td>
+            <td>Invoker</td>
+            <td>Điều khiển 2 ngăn xếp undoStack_ và redoStack_, giới hạn kích thước lịch sử.</td>
+        </tr>
+        <tr>
+            <td><strong>Controller & I/O</strong></td>
+            <td><code>MenuController</code></td>
+            <td>Controller</td>
+            <td>Nhận lệnh console, kiểm tra điều kiện nghiệp vụ và gọi CommandManager.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>SvgExporter</code></td>
+            <td>Service / Exporter</td>
+            <td>Xuất toàn bộ cấu trúc bản vẽ ra chuẩn định dạng XML SVG.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>TextSerializer</code></td>
+            <td>Service / Serializer</td>
+            <td>Tuần tự hóa bản vẽ ra định dạng text .txt để lưu trữ bền vững và giải tuần tự khi nạp.</td>
+        </tr>
+        <tr>
+            <td><strong>Web & Auth</strong></td>
+            <td><code>ProjectServer</code></td>
+            <td>HTTP Server</td>
+            <td>Socket server lắng nghe cổng 8766, điều hướng các REST endpoint cho Web GUI.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>UserManager</code></td>
+            <td>Service</td>
+            <td>Băm mật khẩu (SHA-256 + Salt), cấp phát và kiểm tra token phiên làm việc.</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><code>ProjectManager</code></td>
+            <td>Repository / Service</td>
+            <td>Quản lý dự án đa người dùng, cấp quyền cộng tác viên và lưu file dự án.</td>
+        </tr>
+    </tbody>
+</table>
+
+<hr>
+
+<h2>5. Kết Luận & Đánh Giá Đáp Ứng Yêu Cầu Task 22</h2>
+<ul>
+    <li><strong>Tính đầy đủ (Completeness):</strong> Sơ đồ lớp UML bao phủ toàn diện 100% các thành phần cốt lõi của mã nguồn C++ thực tế trong dự án (Core, Shapes, Canvas, Commands, I/O, Controller, Auth/Web Server).</li>
+    <li><strong>Tính chuẩn mực (Correctness):</strong> Sử dụng chuẩn ký hiệu UML 2.0 (thuộc tính, kiểu dữ liệu, phương thức, độ hiển thị, quan hệ kế thừa, hợp thành, kết tập, phụ thuộc).</li>
+    <li><strong>Độ tin cậy của luồng hoạt động (Operational Flow):</strong> Mô tả rõ nét cơ chế vận hành từ khâu nhập lệnh, qua tầng Factory, đóng gói thành Command, lưu vết trong CommandManager cho đến lúc cập nhật trạng thái bản vẽ hoặc hoàn tác bằng đại số ma trận.</li>
+</ul>
+
+</div>
+</body>
+</html>

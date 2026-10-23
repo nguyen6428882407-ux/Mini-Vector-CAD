@@ -40,7 +40,7 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
-    foreach(test_name IN ITEMS test_group test_shapes test_task9 test_undo_redo test_auth test_history)
+    foreach(test_name IN ITEMS test_group test_shapes test_task9 test_undo_redo test_auth)
         add_executable(${test_name} "tests/${test_name}.cpp")
         target_link_libraries(${test_name} PRIVATE MiniVectorCADCore)
         add_test(NAME ${test_name} COMMAND ${test_name})

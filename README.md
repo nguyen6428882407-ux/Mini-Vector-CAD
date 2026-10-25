@@ -139,8 +139,8 @@ Các test suite tự động bao gồm:
 
 | Thành viên | Phần việc chính | File mã nguồn phụ trách | Trạng thái kiểm thử |
 |---|---|---|---|
-| **Đức Huy** *(Trưởng nhóm)* | Interface cốt lõi, Composite Shape, Command Manager, CMake | `HinhHoc2D.h/.cpp`, `Command.h`, `GroupShape.h/.cpp`, `CommandManager.h/.cpp`, `GroupCommand.h/.cpp`, `CMakeLists.txt` | ✅ `test_group.cpp` (7/7 PASS), `test_task9.cpp` (7/7 PASS) |
-| **Nhất Vũ** | Phép biến đổi 2D, Layer/Canvas và các lệnh thao tác hình | `BienDoi2D`, `Layer`, `BangVeCanvas`, `TransformCommand`, `RemoveShapeCommand`, `AddShapeCommand` | ✅ `test_undo_redo.cpp` |
+| **Đức Huy** | Interface cốt lõi, Composite Shape, Command Manager, CMake | `HinhHoc2D.h/.cpp`, `Command.h`, `GroupShape.h/.cpp`, `CommandManager.h/.cpp`, `GroupCommand.h/.cpp`, `CMakeLists.txt` | ✅ `test_group.cpp` (7/7 PASS), `test_task9.cpp` (7/7 PASS) |
+| **Nhất Vũ** *(Trưởng nhóm)* | Phép biến đổi 2D, Layer/Canvas và các lệnh thao tác hình | `BienDoi2D`, `Layer`, `BangVeCanvas`, `TransformCommand`, `RemoveShapeCommand`, `AddShapeCommand` | ✅ `test_undo_redo.cpp` |
 | **Giang Tưởng** | Điểm, màu sắc, tiện ích toán học, đoạn thẳng và hình tròn | `Diem2D`, `MauSac`, `MathUtils`, `DoanThang`, `HinhTron` | ✅ `test_shapes.cpp` |
 | **Hồ Hưng** | Hình chữ nhật, tam giác và đa giác | `HinhChuNhat`, `TamGiac`, `DaGiac` | ✅ `test_shapes.cpp` |
 | **Trường Vũ** | SVG, serializer, Shape Factory, menu CLI và validation | `SvgExporter`, `TextSerializer`, `ShapeFactory`, `MenuController` | ✅ CLI & Web Server |

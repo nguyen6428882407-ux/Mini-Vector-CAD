@@ -1,6 +1,7 @@
 #pragma once
 #include "shapes/HinhHoc2D.h"
 
+//doan thang (c)
 class DoanThang : public HinhHoc2D {
 private:
     Diem2D p1_, p2_;

@@ -1,6 +1,5 @@
 #pragma once
 #include "shapes/HinhHoc2D.h"
-#include<stdio.h>
 
 //doan thang (c)
 class DoanThang : public HinhHoc2D {

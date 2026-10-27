@@ -32,4 +32,4 @@ public:
     void transform(const BienDoi2D& bd) override;
     std::unique_ptr<HinhHoc2D> clone() const override;
     std::string toSVG() const override;
-};
+};//

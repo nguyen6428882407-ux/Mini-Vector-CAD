@@ -27,3 +27,4 @@ public:
     std::unique_ptr<HinhHoc2D> clone() const override;
     std::string toSVG() const override;
 };
+//

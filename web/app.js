@@ -1541,15 +1541,25 @@ function renderProperties() {
     return;
   }
   if (!shape || usingBrush || usingEraser || isBrushShape) return;
-  document.querySelector("#stroke-color").value = shape.stroke;
+  const strokeInput = document.querySelector("#stroke-color");
+  if (strokeInput && document.activeElement !== strokeInput && strokeInput.value !== shape.stroke) {
+    strokeInput.value = shape.stroke || "#000000";
+  }
   const fillTransparentCheckbox = document.querySelector("#fill-transparent-checkbox");
   const isNoneFill = !shape.fill || shape.fill === "none";
-  if (fillTransparentCheckbox) fillTransparentCheckbox.checked = isNoneFill;
-  if (!isNoneFill) {
-    document.querySelector("#fill-color").value = shape.fill;
+  if (fillTransparentCheckbox && document.activeElement !== fillTransparentCheckbox) {
+    fillTransparentCheckbox.checked = isNoneFill;
   }
-  document.querySelector("#stroke-width").value = shape.width;
-  document.querySelector("#width-value").value = shape.width;
+  const fillInput = document.querySelector("#fill-color");
+  if (!isNoneFill && fillInput && document.activeElement !== fillInput && fillInput.value !== shape.fill) {
+    fillInput.value = shape.fill;
+  }
+  const widthInput = document.querySelector("#stroke-width");
+  if (widthInput && document.activeElement !== widthInput) {
+    widthInput.value = shape.width || 1;
+  }
+  const widthVal = document.querySelector("#width-value");
+  if (widthVal) widthVal.value = shape.width || 1;
 }
 
 function setStatus(message) {
@@ -3155,22 +3165,64 @@ document.querySelector("#canvas-stage").addEventListener("scroll", () => {
 
 function applyStyleToShape(shape, property, val) {
   if (!shape) return;
-  shape[property] = val;
+  if (property === "fill") {
+    if (!["line", "curve", "wave", "arrow"].includes(shape.type)) {
+      shape.fill = val;
+    }
+  } else if (property === "stroke") {
+    shape.stroke = val;
+  } else if (property === "width") {
+    shape.width = val;
+  }
   if (shape.type === "group" && shape.children) {
     shape.children.forEach(child => applyStyleToShape(child, property, val));
+  }
+}
+
+function updateShapeDomStyle(el, shape, property, val) {
+  if (!el || !shape) return;
+  if (shape.type === "group") {
+    const childEls = Array.from(el.children);
+    if (shape.children) {
+      shape.children.forEach((childShape, idx) => {
+        if (childEls[idx]) {
+          updateShapeDomStyle(childEls[idx], childShape, property, val);
+        }
+      });
+    }
+    return;
+  }
+  if (property === "stroke") {
+    shape.stroke = val;
+    el.setAttribute("stroke", val);
+    if (shape.type === "brush" && (shape.brushStyle === "calligraphy" || shape.brushStyle === "taper")) {
+      el.setAttribute("fill", val);
+    }
+  } else if (property === "fill") {
+    if (!["line", "curve", "wave", "arrow"].includes(shape.type)) {
+      shape.fill = val;
+      el.setAttribute("fill", val);
+    }
+  } else if (property === "width") {
+    shape.width = val;
+    if (shape.type !== "brush" || (!shape.brushStyle || shape.brushStyle === "round")) {
+      el.setAttribute("stroke-width", val);
+    }
   }
 }
 
 document.querySelector("#brush-color").addEventListener("input", event => {
   brushColor = event.target.value;
   if (selected && layers[selected.layer]?.shapes[selected.shape]?.type === "brush") {
-    layers[selected.layer].shapes[selected.shape].stroke = brushColor;
+    const shape = layers[selected.layer].shapes[selected.shape];
+    shape.stroke = brushColor;
     const el = artwork.querySelector(`.shape[data-layer="${selected.layer}"][data-shape="${selected.shape}"]`);
     if (el) {
       el.setAttribute("stroke", brushColor);
-      el.setAttribute("fill", brushColor);
+      if (shape.brushStyle === "calligraphy" || shape.brushStyle === "taper") {
+        el.setAttribute("fill", brushColor);
+      }
     }
-    scheduleRender();
   }
 });
 document.querySelector("#brush-color").addEventListener("change", () => {
@@ -3183,10 +3235,12 @@ document.querySelector("#brush-width").addEventListener("input", event => {
   const widthValEl = document.querySelector("#brush-width-value");
   if (widthValEl) widthValEl.value = brushWidth;
   if (selected && layers[selected.layer]?.shapes[selected.shape]?.type === "brush") {
-    layers[selected.layer].shapes[selected.shape].width = brushWidth;
+    const shape = layers[selected.layer].shapes[selected.shape];
+    shape.width = brushWidth;
     const el = artwork.querySelector(`.shape[data-layer="${selected.layer}"][data-shape="${selected.shape}"]`);
-    if (el) el.setAttribute("stroke-width", brushWidth);
-    scheduleRender();
+    if (el && (!shape.brushStyle || shape.brushStyle === "round")) {
+      el.setAttribute("stroke-width", brushWidth);
+    }
   }
 });
 document.querySelector("#brush-width").addEventListener("change", () => {
@@ -3202,7 +3256,6 @@ document.querySelector("#brush-opacity").addEventListener("input", event => {
     layers[selected.layer].shapes[selected.shape].opacity = brushOpacity;
     const el = artwork.querySelector(`.shape[data-layer="${selected.layer}"][data-shape="${selected.shape}"]`);
     if (el) el.setAttribute("opacity", brushOpacity);
-    scheduleRender();
   }
 });
 document.querySelector("#brush-opacity").addEventListener("change", () => {
@@ -3229,7 +3282,7 @@ for (const [inputId, property] of [["stroke-color", "stroke"], ["fill-color", "f
       return;
     }
     if (!historyCaptured) {
-      snapshot();
+      snapshot(false);
       historyCaptured = true;
     }
     if (inputId === "fill-color") {
@@ -3246,31 +3299,14 @@ for (const [inputId, property] of [["stroke-color", "stroke"], ["fill-color", "f
     const targets = selectedItems.length > 0 ? selectedItems : (selected ? [selected] : []);
     targets.forEach(item => {
       const s = layers[item.layer]?.shapes[item.shape];
-      if (s) applyStyleToShape(s, property, val);
-    });
-
-    // Cập nhật trực tiếp thuộc tính SVG trong DOM ngay tức thì (0ms latency, mượt 60-120 FPS khi kéo chuột)
-    targets.forEach(item => {
-      const el = artwork.querySelector(`.shape[data-layer="${item.layer}"][data-shape="${item.shape}"]`);
-      if (el) {
-        if (property === "stroke") {
-          el.setAttribute("stroke", val);
-          el.querySelectorAll("*").forEach(child => child.setAttribute("stroke", val));
-        } else if (property === "fill") {
-          el.setAttribute("fill", val);
-          el.querySelectorAll("*").forEach(child => {
-            if (!["line", "curve", "wave", "arrow"].includes(child.tagName)) {
-              child.setAttribute("fill", val);
-            }
-          });
-        } else if (property === "width") {
-          el.setAttribute("stroke-width", val);
-          el.querySelectorAll("*").forEach(child => child.setAttribute("stroke-width", val));
+      if (s) {
+        applyStyleToShape(s, property, val);
+        const el = artwork.querySelector(`.shape[data-layer="${item.layer}"][data-shape="${item.shape}"]`);
+        if (el) {
+          updateShapeDomStyle(el, s, property, val);
         }
       }
     });
-
-    scheduleRender();
   });
 
   input.addEventListener("change", () => {
@@ -3293,13 +3329,87 @@ if (fillTransparentCheckbox) {
     const targets = selectedItems.length > 0 ? selectedItems : (selected ? [selected] : []);
     targets.forEach(item => {
       const s = layers[item.layer]?.shapes[item.shape];
-      if (s) applyStyleToShape(s, "fill", fillVal);
+      if (s) {
+        applyStyleToShape(s, "fill", fillVal);
+        const el = artwork.querySelector(`.shape[data-layer="${item.layer}"][data-shape="${item.shape}"]`);
+        if (el) updateShapeDomStyle(el, s, "fill", fillVal);
+      }
     });
-    render();
     scheduleCppSync();
     setStatus(event.target.checked ? "Đã đặt nền trong suốt" : "Đã bật màu nền");
   });
 }
+
+// Bảng màu chọn nhanh (Quick Color Palette Swatches)
+document.querySelectorAll(".color-palette-bar .color-swatch-btn").forEach(btn => {
+  btn.addEventListener("click", e => {
+    e.preventDefault();
+    const color = btn.dataset.color;
+    const bar = btn.closest(".color-palette-bar");
+    const targetId = bar?.dataset.target;
+    if (!color || !targetId) return;
+
+    const targetInput = document.getElementById(targetId);
+    if (targetInput) targetInput.value = color;
+
+    if (targetId === "brush-color") {
+      brushColor = color;
+      if (selected && layers[selected.layer]?.shapes[selected.shape]?.type === "brush") {
+        snapshot();
+        const shape = layers[selected.layer].shapes[selected.shape];
+        shape.stroke = color;
+        const el = artwork.querySelector(`.shape[data-layer="${selected.layer}"][data-shape="${selected.shape}"]`);
+        if (el) {
+          el.setAttribute("stroke", color);
+          if (shape.brushStyle === "calligraphy" || shape.brushStyle === "taper") {
+            el.setAttribute("fill", color);
+          }
+        }
+        scheduleCppSync();
+      }
+      return;
+    }
+
+    if (targetId === "text-color") {
+      currentTextColor = color;
+      if (selected && layers[selected.layer]?.shapes[selected.shape]?.type === "text") {
+        snapshot();
+        const shape = layers[selected.layer].shapes[selected.shape];
+        shape.color = color;
+        const el = artwork.querySelector(`.shape[data-layer="${selected.layer}"][data-shape="${selected.shape}"]`);
+        if (el) el.setAttribute("fill", color);
+        scheduleCppSync();
+      }
+      return;
+    }
+
+    if (targetId === "stroke-color" || targetId === "fill-color") {
+      if (!selected) return;
+      if (layers[selected.layer]?.locked) {
+        setStatus("Layer đang bị khóa, không thể chỉnh sửa hình.");
+        return;
+      }
+      snapshot();
+      const property = targetId === "stroke-color" ? "stroke" : "fill";
+      if (property === "fill") {
+        const chk = document.querySelector("#fill-transparent-checkbox");
+        if (chk) chk.checked = false;
+      }
+      const targets = selectedItems.length > 0 ? selectedItems : (selected ? [selected] : []);
+      targets.forEach(item => {
+        const s = layers[item.layer]?.shapes[item.shape];
+        if (s) {
+          applyStyleToShape(s, property, color);
+          const el = artwork.querySelector(`.shape[data-layer="${item.layer}"][data-shape="${item.shape}"]`);
+          if (el) {
+            updateShapeDomStyle(el, s, property, color);
+          }
+        }
+      });
+      scheduleCppSync();
+    }
+  });
+});
 
 function deleteSelectedShape() {
   const items = selectedItems.length > 0 ? selectedItems : (selected ? [selected] : []);
@@ -3475,13 +3585,12 @@ document.querySelector("#image-opacity").addEventListener("input", (e) => {
     setStatus("Layer đang bị khóa, không thể chỉnh sửa ảnh.");
     return;
   }
-  if (!imageOpacityHistoryCaptured) { snapshot(); imageOpacityHistoryCaptured = true; }
+  if (!imageOpacityHistoryCaptured) { snapshot(false); imageOpacityHistoryCaptured = true; }
   shape.opacity = Number(e.target.value) / 100;
   const imgOpVal = document.querySelector("#image-opacity-value");
   if (imgOpVal) imgOpVal.value = `${e.target.value}%`;
   const el = artwork.querySelector(`.shape[data-layer="${selected.layer}"][data-shape="${selected.shape}"]`);
   if (el) el.setAttribute("opacity", shape.opacity);
-  scheduleRender();
 });
 document.querySelector("#image-opacity").addEventListener("change", () => {
   imageOpacityHistoryCaptured = false;
@@ -3615,9 +3724,17 @@ if (textFontSize) {
     if (!selected) return;
     const shape = layers[selected.layer]?.shapes[selected.shape];
     if (!shape || shape.type !== "text") return;
-    if (!textSizeHistoryCaptured) { snapshot(); textSizeHistoryCaptured = true; }
+    if (!textSizeHistoryCaptured) { snapshot(false); textSizeHistoryCaptured = true; }
     shape.fontSize = size;
-    scheduleRender();
+    const el = artwork.querySelector(`.shape[data-layer="${selected.layer}"][data-shape="${selected.shape}"]`);
+    if (el) {
+      el.setAttribute("font-size", `${size}px`);
+      const lineHeight = size * 1.25;
+      const tspans = el.querySelectorAll("tspan");
+      tspans.forEach((tspan, i) => {
+        tspan.setAttribute("dy", i === 0 ? 0 : lineHeight);
+      });
+    }
   });
   textFontSize.addEventListener("change", () => {
     textSizeHistoryCaptured = false;
@@ -3633,11 +3750,10 @@ if (textColor) {
     if (!selected) return;
     const shape = layers[selected.layer]?.shapes[selected.shape];
     if (!shape || shape.type !== "text") return;
-    if (!textColorHistoryCaptured) { snapshot(); textColorHistoryCaptured = true; }
+    if (!textColorHistoryCaptured) { snapshot(false); textColorHistoryCaptured = true; }
     shape.color = currentTextColor;
     const el = artwork.querySelector(`.shape[data-layer="${selected.layer}"][data-shape="${selected.shape}"]`);
     if (el) el.setAttribute("fill", currentTextColor);
-    scheduleRender();
   });
   textColor.addEventListener("change", () => {
     textColorHistoryCaptured = false;

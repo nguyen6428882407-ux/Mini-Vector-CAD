@@ -2050,15 +2050,15 @@ function updateMarqueeBox(start, current) {
   const maxX = Math.max(start.x, current.x);
   const maxY = Math.max(start.y, current.y);
 
-  const left = (minX * scaleX) + (drawingRect.left - stageRect.left);
-  const top = (minY * scaleY) + (drawingRect.top - stageRect.top);
+  const left = (drawingRect.left - stageRect.left) + stage.scrollLeft + (minX * scaleX);
+  const top = (drawingRect.top - stageRect.top) + stage.scrollTop + (minY * scaleY);
   const width = Math.max(2, (maxX - minX) * scaleX);
   const height = Math.max(2, (maxY - minY) * scaleY);
 
-  marqueeBoxEl.style.left = `${left}px`;
-  marqueeBoxEl.style.top = `${top}px`;
-  marqueeBoxEl.style.width = `${width}px`;
-  marqueeBoxEl.style.height = `${height}px`;
+  marqueeBoxEl.style.left = `${Math.round(left)}px`;
+  marqueeBoxEl.style.top = `${Math.round(top)}px`;
+  marqueeBoxEl.style.width = `${Math.round(width)}px`;
+  marqueeBoxEl.style.height = `${Math.round(height)}px`;
   marqueeBoxEl.style.display = "block";
 }
 
@@ -2080,7 +2080,7 @@ drawing.addEventListener("pointerdown", event => {
   }
 
   if (activeTool === "select" || activeTool === "group_select") {
-    if (event.target === drawing || event.target.classList.contains("grid-bg")) {
+    if (event.target === drawing || event.target.classList?.contains("grid-bg") || event.target === artwork) {
       pointerAction = { mode: "marquee", start, moved: false };
       drawing.setPointerCapture(event.pointerId);
       return;
@@ -5768,6 +5768,15 @@ if (stageEl) {
   stageEl.addEventListener("pointerdown", e => {
     if (e.target === stageEl) {
       closeInlineTextEditor(true);
+      if (e.button === 0 && (activeTool === "select" || activeTool === "group_select")) {
+        let start = pointFromEvent(e);
+        if (snapToGrid) {
+          start = { x: Math.round(start.x / 20) * 20, y: Math.round(start.y / 20) * 20 };
+        }
+        pointerAction = { mode: "marquee", start, moved: false };
+        drawing.setPointerCapture(e.pointerId);
+        return;
+      }
     }
     if (e.pointerType === "touch") {
       activeTouchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });

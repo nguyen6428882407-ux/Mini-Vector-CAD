@@ -424,8 +424,8 @@ h2 { margin: 4px 0 0; color: #e6ebf1; font: 700 15px "Segoe UI", Arial, sans-ser
   padding: 0 3px;
   margin: 0;
   border: 1.5px dashed var(--accent);
-  background: transparent !important;
-  color: #000000 !important;
+  background: transparent;
+  color: #000000;
   outline: none;
   border-radius: 4px;
   font-family: inherit;
@@ -435,8 +435,8 @@ h2 { margin: 4px 0 0; color: #e6ebf1; font: 700 15px "Segoe UI", Arial, sans-ser
   box-sizing: border-box;
 }
 :root[data-theme="light"] .canvas-inline-text-editor {
-  background: transparent !important;
-  color: #000000 !important;
+  background: transparent;
+  color: #000000;
 }
 
 /* ── Responsive Component Base Styles ───────────────────── */

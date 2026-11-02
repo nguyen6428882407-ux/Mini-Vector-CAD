@@ -862,7 +862,7 @@ function shapeElement(shape, layerIndex, shapeIndex) {
       transform: common.transform
     });
   } else if (shape.type === "text") {
-    const isEditing = currentEditingTextTarget && currentEditingTextTarget.shape === shape;
+    const isEditing = currentEditingTextTarget && (currentEditingTextTarget.shape === shape || (currentEditingTextTarget.shape?.id && currentEditingTextTarget.shape.id === shape.id));
     element = makeSvg("text", {
       class: common.class,
       "data-layer": common["data-layer"],
@@ -886,7 +886,7 @@ function shapeElement(shape, layerIndex, shapeIndex) {
     lines.forEach((line, i) => {
       const tspan = makeSvg("tspan", {
         x: shape.x,
-        dy: i === 0 ? 0 : lineHeight
+        ...(i > 0 ? { dy: lineHeight } : {})
       });
       tspan.textContent = line || " ";
       element.append(tspan);
@@ -3665,6 +3665,25 @@ document.querySelector("#image-opacity").addEventListener("change", () => {
 // ── Văn bản (Text) & Hiệu ứng chữ ─────────────────────────
 const inlineTextEditor = document.querySelector("#canvas-inline-text-editor");
 
+function repositionInlineTextEditor() {
+  if (!inlineTextEditor || inlineTextEditor.hidden || !currentEditingTextTarget) return;
+  const { shape } = currentEditingTextTarget;
+  const stage = document.querySelector("#canvas-stage");
+  if (!stage) return;
+  const stageRect = stage.getBoundingClientRect();
+  const drawingRect = drawing.getBoundingClientRect();
+
+  const scaleX = drawingRect.width / CANVAS_WIDTH;
+  const scaleY = drawingRect.height / CANVAS_HEIGHT;
+
+  const left = (drawingRect.left - stageRect.left) + stage.scrollLeft + (shape.x * scaleX);
+  const top = (drawingRect.top - stageRect.top) + stage.scrollTop + (shape.y * scaleY);
+
+  inlineTextEditor.style.left = `${Math.round(left)}px`;
+  inlineTextEditor.style.top = `${Math.round(top)}px`;
+  inlineTextEditor.style.fontSize = `${Math.max(12, Math.round((shape.fontSize || 24) * scaleY))}px`;
+}
+
 function openInlineTextEditor(shape, layerIndex, shapeIndex, initialBox = null) {
   if (!inlineTextEditor) return;
   currentEditingTextTarget = { shape, layerIndex, shapeIndex };
@@ -3676,11 +3695,11 @@ function openInlineTextEditor(shape, layerIndex, shapeIndex, initialBox = null) 
   const scaleX = drawingRect.width / CANVAS_WIDTH;
   const scaleY = drawingRect.height / CANVAS_HEIGHT;
 
-  const left = (shape.x * scaleX) + (drawingRect.left - stageRect.left);
-  const top = (shape.y * scaleY) + (drawingRect.top - stageRect.top);
+  const left = (drawingRect.left - stageRect.left) + stage.scrollLeft + (shape.x * scaleX);
+  const top = (drawingRect.top - stageRect.top) + stage.scrollTop + (shape.y * scaleY);
 
-  inlineTextEditor.style.left = `${Math.max(4, left)}px`;
-  inlineTextEditor.style.top = `${Math.max(4, top)}px`;
+  inlineTextEditor.style.left = `${Math.round(left)}px`;
+  inlineTextEditor.style.top = `${Math.round(top)}px`;
 
   if (initialBox) {
     inlineTextEditor.style.width = `${Math.max(80, Math.round(initialBox.w * scaleX))}px`;
@@ -3713,14 +3732,26 @@ function closeInlineTextEditor(save = true) {
   inlineTextEditor.hidden = true;
   if (save && target) {
     const { shape } = target;
+    let targetShape = shape;
+    for (const l of layers) {
+      const s = l.shapes?.find(item => item && (item === shape || (item.id && shape.id && item.id === shape.id)));
+      if (s) {
+        targetShape = s;
+        break;
+      }
+    }
     const newText = inlineTextEditor.value.trim();
-    if (newText !== undefined && newText !== shape.text) {
-      snapshot();
-      shape.text = newText || "Văn bản mới";
-      extrasModified = true;
-      hasPendingLocalChanges = true;
-      scheduleCppSync();
-      setStatus("Đã cập nhật văn bản");
+    if (newText !== undefined) {
+      const val = newText || "Văn bản mới";
+      if (val !== targetShape.text || val !== shape.text) {
+        snapshot();
+        targetShape.text = val;
+        shape.text = val;
+        extrasModified = true;
+        hasPendingLocalChanges = true;
+        scheduleCppSync();
+        setStatus("Đã cập nhật văn bản");
+      }
     }
   }
   render();
@@ -3736,7 +3767,10 @@ if (inlineTextEditor) {
   inlineTextEditor.addEventListener("keydown", event => {
     if (event.key === "Escape") {
       event.preventDefault();
-      closeInlineTextEditor(false);
+      closeInlineTextEditor(true);
+    } else if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      closeInlineTextEditor(true);
     } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       closeInlineTextEditor(true);
@@ -4054,6 +4088,7 @@ function setZoom(value, anchor = null) {
   const cp = (anchor && typeof anchor.clientX === "number") ? pointFromEvent(anchor) : null;
   renderRulers(cp);
   renderSelectionToolbar();
+  repositionInlineTextEditor();
 }
 
 // Zoom bằng cuộn chuột: phóng to/thu nhỏ ngay tại vị trí con trỏ chuột
@@ -4534,24 +4569,30 @@ document.addEventListener("keydown", event => {
     event.preventDefault();
     groupSelectedShapes();
   } else if (event.ctrlKey && event.key.toLowerCase() === "z") {
+    if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
     event.preventDefault();
     document.querySelector("#undo").click();
   } else if (event.ctrlKey && event.key.toLowerCase() === "y") {
+    if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
     event.preventDefault();
     document.querySelector("#redo").click();
   } else if (event.ctrlKey && event.key.toLowerCase() === "c") {
+    if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
     if (selected) {
       event.preventDefault();
       document.querySelector("#copy-shape").click();
     }
   } else if (event.ctrlKey && event.key.toLowerCase() === "v") {
+    if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
     if (copiedShape) {
       event.preventDefault();
       pasteCopiedShape();
     }
   } else if (event.key === "Delete") {
+    if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
     deleteSelectedShape();
   } else if (event.key === "Escape") {
+    if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
     if (selectFlyoutBoard && !selectFlyoutBoard.hidden) selectFlyoutBoard.hidden = true;
     if (shapesFlyoutBoard && !shapesFlyoutBoard.hidden) shapesFlyoutBoard.hidden = true;
     if (linesFlyoutBoard && !linesFlyoutBoard.hidden) linesFlyoutBoard.hidden = true;
@@ -5533,8 +5574,8 @@ function startCollaborationPolling() {
       return;
     }
 
-    // Chỉ đồng bộ khi không đang vẽ kéo chuột và không có thay đổi nội bộ chưa lưu
-    if (pointerAction || hasPendingLocalChanges || !backendConnected) return;
+    // Chỉ đồng bộ khi không đang vẽ kéo chuột, không có thay đổi nội bộ chưa lưu và không đang chỉnh sửa văn bản
+    if (pointerAction || hasPendingLocalChanges || !backendConnected || currentEditingTextTarget) return;
     try {
       const res = await fetch(getProjectApiUrl(), { headers: getAuthHeaders() });
       if (!res.ok) return;
@@ -5725,6 +5766,9 @@ let initialPinchZoom = null;
 const stageEl = document.querySelector("#canvas-stage");
 if (stageEl) {
   stageEl.addEventListener("pointerdown", e => {
+    if (e.target === stageEl) {
+      closeInlineTextEditor(true);
+    }
     if (e.pointerType === "touch") {
       activeTouchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (activeTouchPoints.size === 2) {

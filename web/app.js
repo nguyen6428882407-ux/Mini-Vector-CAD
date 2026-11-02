@@ -759,6 +759,8 @@ function restore(snapshotText) {
   layers.splice(0, layers.length, ...state.layers);
   activeLayer = Math.min(state.activeLayer, layers.length - 1);
   selected = null;
+  extrasModified = true;
+  hasPendingLocalChanges = true;
   render();
   updateHistoryButtons();
   scheduleCppSync();
@@ -2364,6 +2366,7 @@ drawing.addEventListener("pointerup", event => {
 
       const defaultText = "Văn bản mới";
       const newTextShape = {
+        id: "txt_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
         type: "text",
         x,
         y,
@@ -2381,6 +2384,9 @@ drawing.addEventListener("pointerup", event => {
       recordShapeAdded(newTextShape, activeLayer);
       selected = { layer: activeLayer, shape: layers[activeLayer].shapes.length - 1 };
       selectedItems = [selected];
+      extrasModified = true;
+      hasPendingLocalChanges = true;
+      scheduleCppSync();
       setTool("select");
       setStatus("Đã tạo văn bản — kéo các góc để chỉnh cỡ chữ hoặc nhấp đúp để sửa");
       openInlineTextEditor(newTextShape, selected.layer, selected.shape, isDrag ? { w, h } : null);
@@ -2404,6 +2410,14 @@ drawing.addEventListener("pointerup", event => {
   }
   if (action.moved) {
     if (action.mode === "move_multi") {
+      const hadExtras = action.items.some(i => {
+        const s = layers[i.layer]?.shapes[i.shape];
+        return s && (s.type === "image" || s.type === "text");
+      });
+      if (hadExtras) {
+        extrasModified = true;
+        hasPendingLocalChanges = true;
+      }
       undoStack.push(JSON.stringify({ layers: layers.map((layer, index) => ({
         ...layer,
         shapes: layer.shapes.map((shape, shapeIndex) => {
@@ -2417,6 +2431,11 @@ drawing.addEventListener("pointerup", event => {
       scheduleCppSync();
       setStatus(`Đã di chuyển ${action.items.length} hình`);
     } else {
+      const shape = layers[action.layer]?.shapes[action.shape];
+      if (shape && (shape.type === "image" || shape.type === "text")) {
+        extrasModified = true;
+        hasPendingLocalChanges = true;
+      }
       undoStack.push(JSON.stringify({ layers: layers.map((layer, index) => ({
         ...layer,
         shapes: layer.shapes.map((shape, shapeIndex) =>
@@ -2832,6 +2851,11 @@ function bringToFront() {
   layer.shapes.push(item);
   selected.shape = layer.shapes.length - 1;
   selectedItems = [selected];
+  if (item.type === "image" || item.type === "text") {
+    extrasModified = true;
+    hasPendingLocalChanges = true;
+  }
+  scheduleCppSync();
   render();
   setStatus("Đã đưa hình lên trên cùng");
 }
@@ -2845,6 +2869,11 @@ function sendToBack() {
   layer.shapes.unshift(item);
   selected.shape = 0;
   selectedItems = [selected];
+  if (item.type === "image" || item.type === "text") {
+    extrasModified = true;
+    hasPendingLocalChanges = true;
+  }
+  scheduleCppSync();
   render();
   setStatus("Đã đưa hình xuống dưới cùng");
 }
@@ -3418,14 +3447,23 @@ function deleteSelectedShape() {
   }
   snapshot();
   const sorted = [...items].sort((a, b) => b.shape - a.shape);
+  let hadExtras = false;
   sorted.forEach(item => {
     const s = layers[item.layer]?.shapes[item.shape];
-    if (s) recordShapeDeleted(s);
+    if (s) {
+      if (s.type === "image" || s.type === "text") hadExtras = true;
+      recordShapeDeleted(s);
+    }
     layers[item.layer]?.shapes.splice(item.shape, 1);
   });
+  if (hadExtras) {
+    extrasModified = true;
+    hasPendingLocalChanges = true;
+  }
   selected = null;
   selectedItems = [];
   render();
+  scheduleCppSync();
   setStatus(items.length > 1 ? `Đã xóa ${items.length} hình` : "Đã xóa hình");
 }
 
@@ -3451,12 +3489,18 @@ document.querySelector("#duplicate-shape").addEventListener("click", () => {
   }
   snapshot();
   const duplicate = structuredClone(layers[layerIndex].shapes[selected.shape]);
+  if (duplicate.type === "image" || duplicate.type === "text") {
+    duplicate.id = (duplicate.type === "image" ? "img_" : "txt_") + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+    extrasModified = true;
+    hasPendingLocalChanges = true;
+  }
   translateShape(duplicate, 16, 16);
   layers[layerIndex].shapes.push(duplicate);
   recordShapeAdded(duplicate, layerIndex);
   selected = { layer: layerIndex, shape: layers[layerIndex].shapes.length - 1 };
   activeLayer = layerIndex;
   render();
+  scheduleCppSync();
   setStatus("Đã tạo bản sao của hình");
 });
 
@@ -3474,11 +3518,17 @@ function pasteCopiedShape() {
   }
   snapshot();
   const pasted = structuredClone(copiedShape);
+  if (pasted.type === "image" || pasted.type === "text") {
+    pasted.id = (pasted.type === "image" ? "img_" : "txt_") + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+    extrasModified = true;
+    hasPendingLocalChanges = true;
+  }
   translateShape(pasted, 16, 16);
   layers[activeLayer].shapes.push(pasted);
   recordShapeAdded(pasted, activeLayer);
   selected = { layer: activeLayer, shape: layers[activeLayer].shapes.length - 1 };
   render();
+  scheduleCppSync();
   setStatus("Đã dán hình vào layer hiện tại");
 }
 
@@ -3559,11 +3609,24 @@ imageFileInput.addEventListener("change", () => {
       h = Math.round(h * scale);
       const x = Math.round((CANVAS_WIDTH - w) / 2);
       const y = Math.round((CANVAS_HEIGHT - h) / 2);
-      const shape = { type: "image", src, x, y, w, h, opacity: 1, rotation: 0 };
+      const shape = {
+        id: "img_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+        type: "image",
+        src,
+        x,
+        y,
+        w,
+        h,
+        opacity: 1,
+        rotation: 0
+      };
       snapshot();
       layers[activeLayer].shapes.push(shape);
       recordShapeAdded(shape, activeLayer);
       selected = { layer: activeLayer, shape: layers[activeLayer].shapes.length - 1 };
+      extrasModified = true;
+      hasPendingLocalChanges = true;
+      scheduleCppSync();
       render();
       setStatus(`Đã chèn ảnh "${file.name}" vào layer`);
     };
@@ -3584,6 +3647,8 @@ document.querySelector("#image-opacity").addEventListener("input", (e) => {
   }
   if (!imageOpacityHistoryCaptured) { snapshot(false); imageOpacityHistoryCaptured = true; }
   shape.opacity = Number(e.target.value) / 100;
+  extrasModified = true;
+  hasPendingLocalChanges = true;
   const imgOpVal = document.querySelector("#image-opacity-value");
   if (imgOpVal) imgOpVal.value = `${e.target.value}%`;
   const el = artwork.querySelector(`.shape[data-layer="${selected.layer}"][data-shape="${selected.shape}"]`);
@@ -3591,6 +3656,8 @@ document.querySelector("#image-opacity").addEventListener("input", (e) => {
 });
 document.querySelector("#image-opacity").addEventListener("change", () => {
   imageOpacityHistoryCaptured = false;
+  extrasModified = true;
+  hasPendingLocalChanges = true;
   flushRender();
   scheduleCppSync();
 });
@@ -3650,6 +3717,9 @@ function closeInlineTextEditor(save = true) {
     if (newText !== undefined && newText !== shape.text) {
       snapshot();
       shape.text = newText || "Văn bản mới";
+      extrasModified = true;
+      hasPendingLocalChanges = true;
+      scheduleCppSync();
       setStatus("Đã cập nhật văn bản");
     }
   }
@@ -3692,10 +3762,15 @@ if (textContentInput) {
     if (!shape || shape.type !== "text") return;
     if (!textContentHistoryCaptured) { snapshot(); textContentHistoryCaptured = true; }
     shape.text = e.target.value;
+    extrasModified = true;
+    hasPendingLocalChanges = true;
     render();
   });
   textContentInput.addEventListener("change", () => {
     textContentHistoryCaptured = false;
+    extrasModified = true;
+    hasPendingLocalChanges = true;
+    scheduleCppSync();
   });
 }
 
@@ -4209,6 +4284,80 @@ function getProjectApiUrl(id = currentProjectId) {
   return `${API_BASE_URL}/api/project?id=` + encodeURIComponent(id || "proj_default");
 }
 
+function getProjectExtrasApiUrl(id = currentProjectId) {
+  return `${API_BASE_URL}/api/project/extras?id=` + encodeURIComponent(id || "proj_default");
+}
+
+let extrasModified = false;
+
+function serializeProjectExtras() {
+  const extras = [];
+  layers.forEach((layer, layerIndex) => {
+    let nativeCount = 0;
+    (layer.shapes || []).forEach(shape => {
+      if (shape.type === "image" || shape.type === "text") {
+        if (!shape.id) {
+          shape.id = (shape.type === "image" ? "img_" : "txt_") + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+        }
+        extras.push({
+          layerIndex,
+          layerName: layer.name,
+          nativeIndex: nativeCount,
+          shape: structuredClone(shape)
+        });
+      } else {
+        nativeCount++;
+      }
+    });
+  });
+  return extras;
+}
+
+function mergeExtrasIntoLayers(targetLayers, extrasList) {
+  if (!Array.isArray(extrasList) || extrasList.length === 0 || !Array.isArray(targetLayers) || targetLayers.length === 0) return;
+  
+  // Sắp xếp extras theo nativeIndex tăng dần để bảo toàn vị trí gốc
+  const sortedExtras = [...extrasList].sort((a, b) => (a.nativeIndex ?? 0) - (b.nativeIndex ?? 0));
+
+  sortedExtras.forEach(item => {
+    if (!item || !item.shape) return;
+    let lIdx = item.layerIndex;
+    if (lIdx == null || lIdx < 0 || lIdx >= targetLayers.length) {
+      if (item.layerName) {
+        lIdx = targetLayers.findIndex(l => l.name === item.layerName);
+      }
+      if (lIdx < 0) lIdx = 0;
+    }
+    const layer = targetLayers[lIdx];
+    if (!layer) return;
+    if (!Array.isArray(layer.shapes)) layer.shapes = [];
+
+    // Tránh trùng lặp hình
+    const exists = layer.shapes.some(s => {
+      if (s.id && item.shape.id && s.id === item.shape.id) return true;
+      if (s.type === item.shape.type && s.type === "image" && s.src === item.shape.src && Math.abs(s.x - item.shape.x) < 0.1 && Math.abs(s.y - item.shape.y) < 0.1) return true;
+      if (s.type === item.shape.type && s.type === "text" && s.text === item.shape.text && Math.abs(s.x - item.shape.x) < 0.1 && Math.abs(s.y - item.shape.y) < 0.1) return true;
+      return false;
+    });
+    if (exists) return;
+
+    // Tính vị trí chèn dựa trên số lượng native shapes đứng trước
+    let nativeSeen = 0;
+    let insertAt = layer.shapes.length;
+    for (let i = 0; i < layer.shapes.length; i++) {
+      const s = layer.shapes[i];
+      if (s.type !== "image" && s.type !== "text") {
+        if (nativeSeen === item.nativeIndex) {
+          insertAt = i;
+          break;
+        }
+        nativeSeen++;
+      }
+    }
+    layer.shapes.splice(insertAt, 0, structuredClone(item.shape));
+  });
+}
+
 function getAuthHeaders(extra = {}) {
   return {
     ...extra,
@@ -4221,6 +4370,7 @@ async function syncCppProject(reportStatus = true) {
   if (!currentUser || !authToken) {
     try {
       localStorage.setItem("mini-vector-cad-guest-drawing", serializeNativeProject());
+      localStorage.setItem("mini-vector-cad-guest-extras", JSON.stringify(serializeProjectExtras()));
       hasPendingLocalChanges = false;
       if (reportStatus) setStatus("Bản vẽ riêng của Khách đã lưu cục bộ.");
     } catch (_) {}
@@ -4246,6 +4396,20 @@ async function syncCppProject(reportStatus = true) {
       });
       if (!response.ok) throw new Error(`C++ backend trả về HTTP ${response.status}.`);
       await response.text();
+
+      // Đồng bộ các hình ảnh/text bổ trợ (extras)
+      const currentExtras = serializeProjectExtras();
+      if (extrasModified || currentExtras.length > 0) {
+        try {
+          await fetch(getProjectExtrasApiUrl(), {
+            method: "POST",
+            headers: getAuthHeaders({ "Content-Type": "application/json;charset=UTF-8" }),
+            body: JSON.stringify(currentExtras)
+          });
+          extrasModified = false;
+        } catch (_) {}
+      }
+
       if (revision === projectRevision) hasPendingLocalChanges = false;
       else backendSyncPending = true;
     } catch (error) {
@@ -4278,6 +4442,8 @@ async function connectCppBackend() {
     if (savedGuest) {
       try {
         const importedLayers = parseNativeProject(savedGuest);
+        const guestExtras = JSON.parse(localStorage.getItem("mini-vector-cad-guest-extras") || "[]");
+        mergeExtrasIntoLayers(importedLayers, guestExtras);
         if (importedLayers && importedLayers.length > 0) {
           layers.splice(0, layers.length, ...importedLayers);
           activeLayer = 0;
@@ -4304,6 +4470,19 @@ async function connectCppBackend() {
       });
       if (!response.ok) throw new Error(`C++ backend trả về HTTP ${response.status}.`);
       await response.text();
+
+      const currentExtras = serializeProjectExtras();
+      if (extrasModified || currentExtras.length > 0) {
+        try {
+          await fetch(getProjectExtrasApiUrl(), {
+            method: "POST",
+            headers: getAuthHeaders({ "Content-Type": "application/json;charset=UTF-8" }),
+            body: JSON.stringify(currentExtras)
+          });
+          extrasModified = false;
+        } catch (_) {}
+      }
+
       backendConnected = true;
       document.querySelector("#backend-status").textContent = "C++ đã kết nối · tự đồng bộ";
       if (revision === projectRevision) hasPendingLocalChanges = false;
@@ -4315,6 +4494,14 @@ async function connectCppBackend() {
       });
       if (!response.ok) throw new Error(`C++ backend trả về HTTP ${response.status}.`);
       const importedLayers = parseNativeProject(await response.text());
+      try {
+        const extrasRes = await fetch(getProjectExtrasApiUrl(), { headers: getAuthHeaders() });
+        if (extrasRes.ok) {
+          const remoteExtras = await extrasRes.json();
+          mergeExtrasIntoLayers(importedLayers, remoteExtras);
+        }
+      } catch (_) {}
+
       if (hasPendingLocalChanges || revision !== projectRevision) {
         backendConnected = true;
         document.querySelector("#backend-status").textContent = "C++ đã kết nối · tự đồng bộ";
@@ -5206,6 +5393,15 @@ async function switchProject(projectId, forceReload = false) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
     const importedLayers = parseNativeProject(text);
+
+    try {
+      const extrasRes = await fetch(getProjectExtrasApiUrl(projectId), { headers: getAuthHeaders() });
+      if (extrasRes.ok) {
+        const remoteExtras = await extrasRes.json();
+        mergeExtrasIntoLayers(importedLayers, remoteExtras);
+      }
+    } catch (_) {}
+
     layers.splice(0, layers.length, ...importedLayers);
     activeLayer = 0;
     selected = null;
@@ -5344,8 +5540,43 @@ function startCollaborationPolling() {
       if (!res.ok) return;
       const remoteText = await res.text();
       const localText = serializeNativeProject();
-      if (remoteText.trim() !== localText.trim()) {
+
+      let remoteExtras = null;
+      try {
+        const extrasRes = await fetch(getProjectExtrasApiUrl(), { headers: getAuthHeaders() });
+        if (extrasRes.ok) {
+          remoteExtras = await extrasRes.json();
+        }
+      } catch (_) {}
+
+      const localExtras = serializeProjectExtras();
+      const localExtrasStr = JSON.stringify(localExtras);
+      const remoteExtrasStr = remoteExtras ? JSON.stringify(remoteExtras) : localExtrasStr;
+
+      const vectorChanged = remoteText.trim() !== localText.trim();
+      const extrasChanged = remoteExtras && remoteExtrasStr !== localExtrasStr;
+
+      if (vectorChanged || extrasChanged) {
         const importedLayers = parseNativeProject(remoteText);
+
+        // Hợp nhất extras: ưu tiên remote extras từ đồng đội, đồng thời bảo toàn các hình ảnh/text cục bộ nếu chưa có trên remote
+        const combinedExtras = Array.isArray(remoteExtras) ? [...remoteExtras] : [];
+        localExtras.forEach(loc => {
+          const inRemote = combinedExtras.some(rem => {
+            if (rem.shape && loc.shape) {
+              if (rem.shape.id && loc.shape.id && rem.shape.id === loc.shape.id) return true;
+              if (rem.shape.type === loc.shape.type && rem.shape.type === "image" && rem.shape.src === loc.shape.src) return true;
+              if (rem.shape.type === loc.shape.type && rem.shape.type === "text" && rem.shape.text === loc.shape.text) return true;
+            }
+            return false;
+          });
+          if (!inRemote) {
+            combinedExtras.push(loc);
+          }
+        });
+
+        mergeExtrasIntoLayers(importedLayers, combinedExtras.length > 0 ? combinedExtras : localExtras);
+
         layers.splice(0, layers.length, ...importedLayers);
         if (activeLayer >= layers.length) {
           activeLayer = Math.max(0, layers.length - 1);

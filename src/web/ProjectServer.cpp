@@ -664,6 +664,40 @@ void ProjectServer::chay(std::uint16_t port) {
                 respond(client.get(), 500, "Internal Server Error", "{\"success\":false,\"message\":\"Không ghi được file lịch sử dự án.\"}", request.origin);
             }
         }
+        // Endpoint: GET /api/project/extras - Tải các hình bổ trợ (ảnh, chữ) của dự án
+        else if (pathOnly == "/api/project/extras" && request.method == "GET") {
+            std::string projectId = extractQueryParam(queryStr, "id");
+            if (projectId.empty()) projectId = "proj_default";
+
+            std::string extrasPath = "output/projects/" + projectId + "_extras.json";
+            bool ok = false;
+            std::string content = readFileContent(extrasPath, ok);
+            if (!ok) {
+                content = readFileContent("../" + extrasPath, ok);
+            }
+            if (!ok || content.empty()) {
+                content = "[]";
+            }
+            respond(client.get(), 200, "OK", content, request.origin, "application/json; charset=utf-8");
+        }
+        // Endpoint: POST /api/project/extras - Cập nhật các hình bổ trợ (ảnh, chữ) của dự án
+        else if (pathOnly == "/api/project/extras" && request.method == "POST") {
+            std::string projectId = extractQueryParam(queryStr, "id");
+            if (projectId.empty()) projectId = "proj_default";
+
+            std::string extrasPath = "output/projects/" + projectId + "_extras.json";
+            std::ofstream ofs(extrasPath, std::ios::trunc | std::ios::binary);
+            if (!ofs.is_open()) {
+                extrasPath = "../" + extrasPath;
+                ofs.open(extrasPath, std::ios::trunc | std::ios::binary);
+            }
+            if (ofs.is_open()) {
+                ofs.write(request.body.data(), request.body.size());
+                respond(client.get(), 200, "OK", "{\"success\":true,\"message\":\"Đã lưu hình bổ trợ thành công.\"}", request.origin);
+            } else {
+                respond(client.get(), 500, "Internal Server Error", "{\"success\":false,\"message\":\"Không ghi được file hình bổ trợ của dự án.\"}", request.origin);
+            }
+        }
         else {
             respond(client.get(), 404, "Not Found", "{\"error\":\"Endpoint khong ton tai.\"}", request.origin);
         }

@@ -222,6 +222,7 @@ const brushLabels = {
 const toolLabels = {
   select: "Chọn",
   group_select: "Quét chọn nhóm",
+  group: "Nhóm hình",
   rect: "Hình chữ nhật",
   circle: "Hình tròn",
   triangle: "Tam giác",
@@ -910,71 +911,73 @@ function shapeElement(shape, layerIndex, shapeIndex) {
   } else {
     element = makeSvg("polygon", { ...common, points: shape.points.map(point => point.join(",")).join(" ") });
   }
-  const isThisSelected = (selected && selected.layer === layerIndex && selected.shape === shapeIndex) ||
-    selectedItems.some(item => item.layer === layerIndex && item.shape === shapeIndex);
+  const isThisSelected = shapeIndex >= 0 && ((selected && selected.layer === layerIndex && selected.shape === shapeIndex) ||
+    selectedItems.some(item => item.layer === layerIndex && item.shape === shapeIndex));
   if (isThisSelected) element.classList.add("selected");
-  element.addEventListener("pointerdown", event => {
-    if (event.button !== 0) return;
-    if (activeTool !== "select" && activeTool !== "group_select") return;
-    event.stopPropagation();
-    event.preventDefault();
+  if (shapeIndex >= 0) {
+    element.addEventListener("pointerdown", event => {
+      if (event.button !== 0) return;
+      if (activeTool !== "select" && activeTool !== "group_select") return;
+      event.stopPropagation();
+      event.preventDefault();
 
-    const clickedItem = { layer: layerIndex, shape: shapeIndex };
-    const isAlreadyInSelection = selectedItems.some(i => i.layer === layerIndex && i.shape === shapeIndex);
+      const clickedItem = { layer: layerIndex, shape: shapeIndex };
+      const isAlreadyInSelection = selectedItems.some(i => i.layer === layerIndex && i.shape === shapeIndex);
 
-    if (event.shiftKey) {
-      if (isAlreadyInSelection) {
-        selectedItems = selectedItems.filter(i => !(i.layer === layerIndex && i.shape === shapeIndex));
-        selected = selectedItems[0] || null;
-      } else {
-        selectedItems.push(clickedItem);
-        selected = clickedItem;
+      if (event.shiftKey) {
+        if (isAlreadyInSelection) {
+          selectedItems = selectedItems.filter(i => !(i.layer === layerIndex && i.shape === shapeIndex));
+          selected = selectedItems[0] || null;
+        } else {
+          selectedItems.push(clickedItem);
+          selected = clickedItem;
+        }
+        activeLayer = layerIndex;
+        render();
+        setStatus(`Đã chọn ${selectedItems.length} hình`);
+        return;
       }
-      activeLayer = layerIndex;
+
+      if (!isAlreadyInSelection) {
+        selected = clickedItem;
+        selectedItems = [clickedItem];
+        activeLayer = layerIndex;
+      } else {
+        selected = clickedItem;
+        activeLayer = layerIndex;
+      }
+
+      if (layers[layerIndex].locked) {
+        setStatus("Layer đang bị khóa, không thể di chuyển hình.");
+        return;
+      }
+
+      if (selectedItems.length > 1) {
+        pointerAction = {
+          mode: "move_multi",
+          items: selectedItems.map(item => ({
+            layer: item.layer,
+            shape: item.shape,
+            original: structuredClone(layers[item.layer].shapes[item.shape])
+          })),
+          start: pointFromEvent(event),
+          moved: false
+        };
+      } else {
+        pointerAction = {
+          mode: "move",
+          layer: layerIndex,
+          shape: shapeIndex,
+          start: pointFromEvent(event),
+          original: structuredClone(shape),
+          moved: false
+        };
+      }
+      drawing.setPointerCapture(event.pointerId);
       render();
-      setStatus(`Đã chọn ${selectedItems.length} hình`);
-      return;
-    }
-
-    if (!isAlreadyInSelection) {
-      selected = clickedItem;
-      selectedItems = [clickedItem];
-      activeLayer = layerIndex;
-    } else {
-      selected = clickedItem;
-      activeLayer = layerIndex;
-    }
-
-    if (layers[layerIndex].locked) {
-      setStatus("Layer đang bị khóa, không thể di chuyển hình.");
-      return;
-    }
-
-    if (selectedItems.length > 1) {
-      pointerAction = {
-        mode: "move_multi",
-        items: selectedItems.map(item => ({
-          layer: item.layer,
-          shape: item.shape,
-          original: structuredClone(layers[item.layer].shapes[item.shape])
-        })),
-        start: pointFromEvent(event),
-        moved: false
-      };
-    } else {
-      pointerAction = {
-        mode: "move",
-        layer: layerIndex,
-        shape: shapeIndex,
-        start: pointFromEvent(event),
-        original: structuredClone(shape),
-        moved: false
-      };
-    }
-    drawing.setPointerCapture(event.pointerId);
-    render();
-    setStatus("Đang kéo hình — thả chuột để đặt vào vị trí mới");
-  });
+      setStatus("Đang kéo hình — thả chuột để đặt vào vị trí mới");
+    });
+  }
   return element;
 }
 
@@ -1651,6 +1654,10 @@ function createShape(type, start, end) {
 }
 
 function translateShape(shape, dx, dy) {
+  if (shape.type === "group") {
+    (shape.children || []).forEach(child => translateShape(child, dx, dy));
+    return;
+  }
   if (shape.type === "rect" || shape.type === "circle" || shape.type === "image" || shape.type === "text") {
     shape.x += dx;
     shape.y += dy;
@@ -1669,9 +1676,71 @@ function translateShape(shape, dx, dy) {
     shape.cy += dy;
     shape.x2 += dx;
     shape.y2 += dy;
-  } else {
+  } else if (shape.points) {
     shape.points = shape.points.map(([x, y]) => [x + dx, y + dy]);
   }
+}
+
+function scaleShapeRelativeToBox(shape, oldBounds, newBounds) {
+  const scaleX = newBounds.w / (oldBounds.w || 1);
+  const scaleY = newBounds.h / (oldBounds.h || 1);
+  const mapX = x => newBounds.x + (x - oldBounds.x) * scaleX;
+  const mapY = y => newBounds.y + (y - oldBounds.y) * scaleY;
+
+  if (shape.type === "group") {
+    shape.children = (shape.children || []).map(c => scaleShapeRelativeToBox(c, oldBounds, newBounds));
+    return shape;
+  }
+  if (shape.type === "rect" || shape.type === "image") {
+    shape.x = mapX(shape.x);
+    shape.y = mapY(shape.y);
+    shape.w = Math.max(1, shape.w * scaleX);
+    shape.h = Math.max(1, shape.h * scaleY);
+    return shape;
+  }
+  if (shape.type === "circle") {
+    shape.x = mapX(shape.x);
+    shape.y = mapY(shape.y);
+    shape.r = Math.max(1, shape.r * Math.hypot(scaleX, scaleY) / Math.SQRT2);
+    return shape;
+  }
+  if (shape.type === "ellipse") {
+    shape.cx = mapX(shape.cx);
+    shape.cy = mapY(shape.cy);
+    shape.rx = Math.max(1, shape.rx * scaleX);
+    shape.ry = Math.max(1, shape.ry * scaleY);
+    return shape;
+  }
+  if (shape.type === "line" || shape.type === "wave" || shape.type === "arrow") {
+    shape.x1 = mapX(shape.x1);
+    shape.y1 = mapY(shape.y1);
+    shape.x2 = mapX(shape.x2);
+    shape.y2 = mapY(shape.y2);
+    if (shape.type === "wave" && shape.amplitude) {
+      shape.amplitude = Math.max(1, shape.amplitude * scaleY);
+    }
+    return shape;
+  }
+  if (shape.type === "curve") {
+    shape.x1 = mapX(shape.x1);
+    shape.y1 = mapY(shape.y1);
+    shape.cx = mapX(shape.cx);
+    shape.cy = mapY(shape.cy);
+    shape.x2 = mapX(shape.x2);
+    shape.y2 = mapY(shape.y2);
+    return shape;
+  }
+  if (shape.type === "text") {
+    shape.x = mapX(shape.x);
+    shape.y = mapY(shape.y);
+    shape.fontSize = Math.max(8, Math.round((shape.fontSize || 24) * ((scaleX + scaleY) / 2)));
+    return shape;
+  }
+  if (shape.points) {
+    shape.points = shape.points.map(([x, y]) => [mapX(x), mapY(y)]);
+    return shape;
+  }
+  return shape;
 }
 
 function resizeShape(original, handle, point) {
@@ -1702,6 +1771,20 @@ function resizeShape(original, handle, point) {
   if (shape.type === "circle") {
     shape.r = Math.max(1, Math.hypot(point.x - shape.x, point.y - shape.y));
     return shape;
+  }
+  if (shape.type === "group") {
+    const bounds = shapeBounds(original);
+    const left = handle.includes("w") ? point.x : bounds.x;
+    const right = handle.includes("e") ? point.x : bounds.x + bounds.w;
+    const top = handle.includes("n") ? point.y : bounds.y;
+    const bottom = handle.includes("s") ? point.y : bounds.y + bounds.h;
+    const next = {
+      x: Math.min(left, right),
+      y: Math.min(top, bottom),
+      w: Math.max(1, Math.abs(right - left)),
+      h: Math.max(1, Math.abs(bottom - top))
+    };
+    return scaleShapeRelativeToBox(shape, bounds, next);
   }
 
   const bounds = shapeBounds(original);
@@ -2553,27 +2636,62 @@ document.querySelectorAll(".tool[data-tool]").forEach(button => {
 
 // ── Xử lý Nhóm (Group) & Rã nhóm (Ungroup) ────────────────
 function groupSelectedShapes() {
-  if (selectedItems.length < 2) return;
-  snapshot();
-  const targetLayer = selectedItems[0].layer;
-  if (layers[targetLayer].locked) {
-    setStatus("Layer đang bị khóa, không thể nhóm hình.");
+  const items = selectedItems.length > 1 ? selectedItems : [];
+  if (items.length < 2) return;
+
+  // Khử trùng lặp và kiểm tra hình tồn tại
+  const uniqueKeys = new Set();
+  const validItems = [];
+  for (const it of items) {
+    const key = `${it.layer}:${it.shape}`;
+    if (!uniqueKeys.has(key) && layers[it.layer]?.shapes[it.shape]) {
+      uniqueKeys.add(key);
+      validItems.push(it);
+    }
+  }
+  if (validItems.length < 2) return;
+
+  // Kiểm tra layer bị khóa
+  if (validItems.some(it => layers[it.layer]?.locked)) {
+    setStatus("Có layer đang bị khóa, không thể nhóm hình.");
     return;
   }
+
+  snapshot();
+
+  // Sắp xếp giảm dần theo layer rồi đến shape để khi splice không làm lệch chỉ số
+  validItems.sort((a, b) => b.layer !== a.layer ? b.layer - a.layer : b.shape - a.shape);
+
+  const targetLayer = validItems[validItems.length - 1].layer;
+  const targetLayerItems = validItems.filter(it => it.layer === targetLayer);
+  const insertIndex = targetLayerItems.length > 0 ? Math.min(...targetLayerItems.map(it => it.shape)) : layers[targetLayer].shapes.length;
+
   const groupedShapes = [];
-  const sorted = [...selectedItems].sort((a, b) => b.shape - a.shape);
-  sorted.forEach(item => {
-    groupedShapes.unshift(...layers[item.layer].shapes.splice(item.shape, 1));
+  validItems.forEach(item => {
+    const removed = layers[item.layer].shapes.splice(item.shape, 1)[0];
+    if (removed) groupedShapes.unshift(removed);
   });
+
+  const firstStroke = groupedShapes.find(s => s.stroke)?.stroke || "#000000";
+  const firstFill = groupedShapes.find(s => s.fill && s.fill !== "none")?.fill || "none";
+  const firstWidth = groupedShapes.find(s => s.width)?.width || 2;
+
   const newGroup = {
     type: "group",
     children: groupedShapes,
-    rotation: 0
+    rotation: 0,
+    stroke: firstStroke,
+    fill: firstFill,
+    width: firstWidth
   };
-  layers[targetLayer].shapes.push(newGroup);
-  selected = { layer: targetLayer, shape: layers[targetLayer].shapes.length - 1 };
+
+  const safeInsertIndex = Math.min(insertIndex, layers[targetLayer].shapes.length);
+  layers[targetLayer].shapes.splice(safeInsertIndex, 0, newGroup);
+
+  selected = { layer: targetLayer, shape: safeInsertIndex };
   selectedItems = [selected];
   render();
+  scheduleCppSync();
   setStatus(`Đã nhóm ${groupedShapes.length} hình thành 1 nhóm`);
 }
 
@@ -2586,13 +2704,56 @@ function ungroupSelectedShape() {
     return;
   }
   snapshot();
-  const children = shape.children || [];
-  layers[selected.layer].shapes.splice(selected.shape, 1);
-  const startIdx = layers[selected.layer].shapes.length;
-  layers[selected.layer].shapes.push(...children);
-  selectedItems = children.map((_, i) => ({ layer: selected.layer, shape: startIdx + i }));
+  const children = (shape.children || []).map(c => structuredClone(c));
+
+  // Nếu group có góc xoay, bảo toàn góc xoay cho các hình con quanh tâm nhóm
+  if (shape.rotation) {
+    const bounds = shapeBounds(shape);
+    const cx = bounds.x + bounds.w / 2;
+    const cy = bounds.y + bounds.h / 2;
+    const angleRad = (shape.rotation * Math.PI) / 180;
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
+    const rotatePt = (x, y) => {
+      const dx = x - cx;
+      const dy = y - cy;
+      return [cx + dx * cos - dy * sin, cy + dx * sin + dy * cos];
+    };
+    children.forEach(c => {
+      c.rotation = (c.rotation || 0) + shape.rotation;
+      if (c.type === "rect" || c.type === "image" || c.type === "text") {
+        const [nx, ny] = rotatePt(c.x + c.w / 2, c.y + c.h / 2);
+        c.x = nx - c.w / 2;
+        c.y = ny - c.h / 2;
+      } else if (c.type === "circle") {
+        const [nx, ny] = rotatePt(c.x, c.y);
+        c.x = nx;
+        c.y = ny;
+      } else if (c.type === "ellipse") {
+        const [nx, ny] = rotatePt(c.cx, c.cy);
+        c.cx = nx;
+        c.cy = ny;
+      } else if (c.type === "line" || c.type === "wave" || c.type === "arrow") {
+        const [nx1, ny1] = rotatePt(c.x1, c.y1);
+        const [nx2, ny2] = rotatePt(c.x2, c.y2);
+        c.x1 = nx1; c.y1 = ny1; c.x2 = nx2; c.y2 = ny2;
+      } else if (c.type === "curve") {
+        const [nx1, ny1] = rotatePt(c.x1, c.y1);
+        const [ncx, ncy] = rotatePt(c.cx, c.cy);
+        const [nx2, ny2] = rotatePt(c.x2, c.y2);
+        c.x1 = nx1; c.y1 = ny1; c.cx = ncx; c.cy = ncy; c.x2 = nx2; c.y2 = ny2;
+      } else if (c.points) {
+        c.points = c.points.map(([px, py]) => rotatePt(px, py));
+      }
+    });
+  }
+
+  // Thay thế vị trí nhóm bằng danh sách hình con
+  layers[selected.layer].shapes.splice(selected.shape, 1, ...children);
+  selectedItems = children.map((_, i) => ({ layer: selected.layer, shape: selected.shape + i }));
   selected = selectedItems[0] || null;
   render();
+  scheduleCppSync();
   setStatus(`Đã rã nhóm thành ${children.length} hình riêng lẻ`);
 }
 
@@ -2992,41 +3153,78 @@ document.querySelector("#canvas-stage").addEventListener("scroll", () => {
   renderRulers();
 });
 
+function applyStyleToShape(shape, property, val) {
+  if (!shape) return;
+  shape[property] = val;
+  if (shape.type === "group" && shape.children) {
+    shape.children.forEach(child => applyStyleToShape(child, property, val));
+  }
+}
+
 document.querySelector("#brush-color").addEventListener("input", event => {
   brushColor = event.target.value;
-  if (selected && layers[selected.layer].shapes[selected.shape]?.type === "brush") {
+  if (selected && layers[selected.layer]?.shapes[selected.shape]?.type === "brush") {
     layers[selected.layer].shapes[selected.shape].stroke = brushColor;
-    render();
+    const el = artwork.querySelector(`.shape[data-layer="${selected.layer}"][data-shape="${selected.shape}"]`);
+    if (el) {
+      el.setAttribute("stroke", brushColor);
+      el.setAttribute("fill", brushColor);
+    }
+    scheduleRender();
   }
 });
+document.querySelector("#brush-color").addEventListener("change", () => {
+  flushRender();
+  scheduleCppSync();
+});
+
 document.querySelector("#brush-width").addEventListener("input", event => {
   brushWidth = Number(event.target.value);
-  document.querySelector("#brush-width-value").value = brushWidth;
-  if (selected && layers[selected.layer].shapes[selected.shape]?.type === "brush") {
+  const widthValEl = document.querySelector("#brush-width-value");
+  if (widthValEl) widthValEl.value = brushWidth;
+  if (selected && layers[selected.layer]?.shapes[selected.shape]?.type === "brush") {
     layers[selected.layer].shapes[selected.shape].width = brushWidth;
-    render();
+    const el = artwork.querySelector(`.shape[data-layer="${selected.layer}"][data-shape="${selected.shape}"]`);
+    if (el) el.setAttribute("stroke-width", brushWidth);
+    scheduleRender();
   }
 });
+document.querySelector("#brush-width").addEventListener("change", () => {
+  flushRender();
+  scheduleCppSync();
+});
+
 document.querySelector("#brush-opacity").addEventListener("input", event => {
   brushOpacity = Number(event.target.value) / 100;
-  document.querySelector("#brush-opacity-value").value = `${event.target.value}%`;
-  if (selected && layers[selected.layer].shapes[selected.shape]?.type === "brush") {
+  const opacityValEl = document.querySelector("#brush-opacity-value");
+  if (opacityValEl) opacityValEl.value = `${event.target.value}%`;
+  if (selected && layers[selected.layer]?.shapes[selected.shape]?.type === "brush") {
     layers[selected.layer].shapes[selected.shape].opacity = brushOpacity;
-    render();
+    const el = artwork.querySelector(`.shape[data-layer="${selected.layer}"][data-shape="${selected.shape}"]`);
+    if (el) el.setAttribute("opacity", brushOpacity);
+    scheduleRender();
   }
 });
+document.querySelector("#brush-opacity").addEventListener("change", () => {
+  flushRender();
+  scheduleCppSync();
+});
+
 document.querySelector("#eraser-width").addEventListener("input", event => {
   eraserWidth = Number(event.target.value);
-  document.querySelector("#eraser-width-value").value = eraserWidth;
+  const eraserValEl = document.querySelector("#eraser-width-value");
+  if (eraserValEl) eraserValEl.value = eraserWidth;
   if (eraserCursor) eraserCursor.setAttribute("r", eraserWidth / 2);
 });
 
 for (const [inputId, property] of [["stroke-color", "stroke"], ["fill-color", "fill"], ["stroke-width", "width"]]) {
   const input = document.querySelector(`#${inputId}`);
+  if (!input) continue;
   let historyCaptured = false;
+
   input.addEventListener("input", event => {
     if (!selected) return;
-    if (layers[selected.layer].locked) {
+    if (layers[selected.layer]?.locked) {
       setStatus("Layer đang bị khóa, không thể chỉnh sửa hình.");
       return;
     }
@@ -3038,30 +3236,67 @@ for (const [inputId, property] of [["stroke-color", "stroke"], ["fill-color", "f
       const chk = document.querySelector("#fill-transparent-checkbox");
       if (chk) chk.checked = false;
     }
-    layers[selected.layer].shapes[selected.shape][property] = property === "width" ? Number(event.target.value) : event.target.value;
-    document.querySelector("#width-value").value = event.target.value;
-    render();
+
+    const val = property === "width" ? Number(event.target.value) : event.target.value;
+    if (property === "width") {
+      const widthVal = document.querySelector("#width-value");
+      if (widthVal) widthVal.value = event.target.value;
+    }
+
+    const targets = selectedItems.length > 0 ? selectedItems : (selected ? [selected] : []);
+    targets.forEach(item => {
+      const s = layers[item.layer]?.shapes[item.shape];
+      if (s) applyStyleToShape(s, property, val);
+    });
+
+    // Cập nhật trực tiếp thuộc tính SVG trong DOM ngay tức thì (0ms latency, mượt 60-120 FPS khi kéo chuột)
+    targets.forEach(item => {
+      const el = artwork.querySelector(`.shape[data-layer="${item.layer}"][data-shape="${item.shape}"]`);
+      if (el) {
+        if (property === "stroke") {
+          el.setAttribute("stroke", val);
+          el.querySelectorAll("*").forEach(child => child.setAttribute("stroke", val));
+        } else if (property === "fill") {
+          el.setAttribute("fill", val);
+          el.querySelectorAll("*").forEach(child => {
+            if (!["line", "curve", "wave", "arrow"].includes(child.tagName)) {
+              child.setAttribute("fill", val);
+            }
+          });
+        } else if (property === "width") {
+          el.setAttribute("stroke-width", val);
+          el.querySelectorAll("*").forEach(child => child.setAttribute("stroke-width", val));
+        }
+      }
+    });
+
+    scheduleRender();
   });
-  input.addEventListener("change", () => { historyCaptured = false; });
+
+  input.addEventListener("change", () => {
+    historyCaptured = false;
+    flushRender();
+    scheduleCppSync();
+  });
 }
 
 const fillTransparentCheckbox = document.querySelector("#fill-transparent-checkbox");
 if (fillTransparentCheckbox) {
   fillTransparentCheckbox.addEventListener("change", event => {
     if (!selected) return;
-    if (layers[selected.layer].locked) {
+    if (layers[selected.layer]?.locked) {
       setStatus("Layer đang bị khóa, không thể chỉnh sửa hình.");
       return;
     }
-    const shape = layers[selected.layer].shapes[selected.shape];
-    if (!shape) return;
     snapshot();
-    if (event.target.checked) {
-      shape.fill = "none";
-    } else {
-      shape.fill = document.querySelector("#fill-color")?.value || "#ffffff";
-    }
+    const fillVal = event.target.checked ? "none" : (document.querySelector("#fill-color")?.value || "#ffffff");
+    const targets = selectedItems.length > 0 ? selectedItems : (selected ? [selected] : []);
+    targets.forEach(item => {
+      const s = layers[item.layer]?.shapes[item.shape];
+      if (s) applyStyleToShape(s, "fill", fillVal);
+    });
     render();
+    scheduleCppSync();
     setStatus(event.target.checked ? "Đã đặt nền trong suốt" : "Đã bật màu nền");
   });
 }
@@ -3236,17 +3471,22 @@ document.querySelector("#image-opacity").addEventListener("input", (e) => {
   if (!selected) return;
   const shape = layers[selected.layer]?.shapes[selected.shape];
   if (!shape || shape.type !== "image") return;
-  if (layers[selected.layer].locked) {
+  if (layers[selected.layer]?.locked) {
     setStatus("Layer đang bị khóa, không thể chỉnh sửa ảnh.");
     return;
   }
   if (!imageOpacityHistoryCaptured) { snapshot(); imageOpacityHistoryCaptured = true; }
   shape.opacity = Number(e.target.value) / 100;
-  document.querySelector("#image-opacity-value").value = `${e.target.value}%`;
-  render();
+  const imgOpVal = document.querySelector("#image-opacity-value");
+  if (imgOpVal) imgOpVal.value = `${e.target.value}%`;
+  const el = artwork.querySelector(`.shape[data-layer="${selected.layer}"][data-shape="${selected.shape}"]`);
+  if (el) el.setAttribute("opacity", shape.opacity);
+  scheduleRender();
 });
 document.querySelector("#image-opacity").addEventListener("change", () => {
   imageOpacityHistoryCaptured = false;
+  flushRender();
+  scheduleCppSync();
 });
 
 // ── Văn bản (Text) & Hiệu ứng chữ ─────────────────────────
@@ -3377,10 +3617,12 @@ if (textFontSize) {
     if (!shape || shape.type !== "text") return;
     if (!textSizeHistoryCaptured) { snapshot(); textSizeHistoryCaptured = true; }
     shape.fontSize = size;
-    render();
+    scheduleRender();
   });
   textFontSize.addEventListener("change", () => {
     textSizeHistoryCaptured = false;
+    flushRender();
+    scheduleCppSync();
   });
 }
 
@@ -3393,10 +3635,14 @@ if (textColor) {
     if (!shape || shape.type !== "text") return;
     if (!textColorHistoryCaptured) { snapshot(); textColorHistoryCaptured = true; }
     shape.color = currentTextColor;
-    render();
+    const el = artwork.querySelector(`.shape[data-layer="${selected.layer}"][data-shape="${selected.shape}"]`);
+    if (el) el.setAttribute("fill", currentTextColor);
+    scheduleRender();
   });
   textColor.addEventListener("change", () => {
     textColorHistoryCaptured = false;
+    flushRender();
+    scheduleCppSync();
   });
 }
 
@@ -3648,8 +3894,16 @@ function colorChannels(color, alpha = 255) {
 
 function serializeNativeShape(shape) {
   if (shape.type === "image" || shape.type === "text") return null; // Ảnh và Text lưu cục bộ trên giao diện Web
-  const stroke = colorChannels(shape.stroke, Math.round((shape.opacity ?? 1) * 255));
+  const stroke = colorChannels(shape.stroke || "#000000", Math.round((shape.opacity ?? 1) * 255));
   const fill = shape.fill && shape.fill !== "none" ? colorChannels(shape.fill) : [255, 255, 255, 0];
+  const width = shape.width || 1;
+
+  if (shape.type === "group") {
+    const validChildren = (shape.children || []).filter(c => c.type !== "image" && c.type !== "text");
+    const childLines = validChildren.map(c => serializeNativeShape(c)).filter(Boolean);
+    return [`group ${childLines.length} vien ${stroke.join(" ")} nen ${fill.join(" ")} net ${width}`, ...childLines].join("\n");
+  }
+
   let geometry;
   if (shape.type === "rect") geometry = `chunhat ${shape.x} ${shape.y} ${shape.w} ${shape.h}`;
   else if (shape.type === "circle") geometry = `tron ${shape.x} ${shape.y} ${shape.r}`;
@@ -3668,24 +3922,19 @@ function serializeNativeShape(shape) {
   else if (shape.type === "polygon" || shape.type === "star" || shape.type === "parallelogram" || shape.type === "trapezoid") geometry = `dagiac ${shape.points.flat().join(" ")}`;
   else if (shape.type === "brush") geometry = `brush ${shape.points.length} ${shape.points.flat().join(" ")}`;
   else throw new Error(`Loại hình "${shape.type}" chưa hỗ trợ lưu sang C++.`);
-  return `${geometry} vien ${stroke.join(" ")} nen ${fill.join(" ")} net ${shape.width}`;
+  return `${geometry} vien ${stroke.join(" ")} nen ${fill.join(" ")} net ${width}`;
 }
 
 function serializeNativeProject() {
   const lines = ["MINI_VECTOR_CAD_V1", `LAYERS ${layers.length}`];
-  function flattenShapes(shapes) {
-    const res = [];
-    shapes.forEach(s => {
-      if (s.type === "group") res.push(...flattenShapes(s.children || []));
-      else res.push(s);
-    });
-    return res;
-  }
   for (const layer of layers) {
     const name = layer.name.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\t/g, "\\t").replace(/\r/g, "\\r");
-    const nonNativeShapes = flattenShapes(layer.shapes).filter(s => s.type !== "image" && s.type !== "text");
+    const nonNativeShapes = (layer.shapes || []).filter(s => s.type !== "image" && s.type !== "text");
     lines.push(`LAYER "${name}" ${layer.visible ? 1 : 0} ${layer.locked ? 1 : 0} ${nonNativeShapes.length}`);
-    nonNativeShapes.forEach(shape => lines.push(serializeNativeShape(shape)));
+    nonNativeShapes.forEach(shape => {
+      const s = serializeNativeShape(shape);
+      if (s) lines.push(s);
+    });
   }
   return `${lines.join("\n")}\n`;
 }
@@ -3740,10 +3989,13 @@ function parseNativeProject(text) {
     if (type === "group" || type === "nhom") {
       const count = Number(tokens[1]);
       if (!Number.isInteger(count) || count < 0 || count > 10000) throw new Error("Số hình trong group không hợp lệ.");
-      readStyle(tokens, 2);
+      const style = readStyle(tokens, 2);
       const children = [];
-      for (let index = 0; index < count; index++) children.push(...readShape());
-      return children;
+      for (let index = 0; index < count; index++) {
+        const childArr = readShape();
+        children.push(...childArr);
+      }
+      return [{ type: "group", children, rotation: 0, ...style }];
     }
     if (++totalShapes > 100000) throw new Error("File vượt quá giới hạn số hình cho phép.");
 

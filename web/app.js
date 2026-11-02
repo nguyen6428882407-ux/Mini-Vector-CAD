@@ -2033,33 +2033,27 @@ function eraseAlong(start, end, radius) {
 let marqueeBoxEl = null;
 
 function updateMarqueeBox(start, current) {
-  const stage = document.querySelector("#canvas-stage");
-  if (!stage) return;
   if (!marqueeBoxEl) {
-    marqueeBoxEl = document.createElement("div");
-    marqueeBoxEl.className = "marquee-box";
-    stage.append(marqueeBoxEl);
+    marqueeBoxEl = makeSvg("rect", {
+      class: "marquee-box",
+      fill: "rgba(56, 189, 248, 0.16)",
+      stroke: "#38bdf8",
+      "stroke-width": "1.5",
+      "stroke-dasharray": "4 3",
+      "vector-effect": "non-scaling-stroke",
+      "pointer-events": "none"
+    });
+    drawing.append(marqueeBoxEl);
   }
-  const stageRect = stage.getBoundingClientRect();
-  const drawingRect = drawing.getBoundingClientRect();
-  const scaleX = drawingRect.width / CANVAS_WIDTH;
-  const scaleY = drawingRect.height / CANVAS_HEIGHT;
-
   const minX = Math.min(start.x, current.x);
   const minY = Math.min(start.y, current.y);
   const maxX = Math.max(start.x, current.x);
   const maxY = Math.max(start.y, current.y);
 
-  const left = (drawingRect.left - stageRect.left) + stage.scrollLeft + (minX * scaleX);
-  const top = (drawingRect.top - stageRect.top) + stage.scrollTop + (minY * scaleY);
-  const width = Math.max(2, (maxX - minX) * scaleX);
-  const height = Math.max(2, (maxY - minY) * scaleY);
-
-  marqueeBoxEl.style.left = `${Math.round(left)}px`;
-  marqueeBoxEl.style.top = `${Math.round(top)}px`;
-  marqueeBoxEl.style.width = `${Math.round(width)}px`;
-  marqueeBoxEl.style.height = `${Math.round(height)}px`;
-  marqueeBoxEl.style.display = "block";
+  marqueeBoxEl.setAttribute("x", minX);
+  marqueeBoxEl.setAttribute("y", minY);
+  marqueeBoxEl.setAttribute("width", Math.max(0.5, maxX - minX));
+  marqueeBoxEl.setAttribute("height", Math.max(0.5, maxY - minY));
 }
 
 function removeMarqueeBox() {
@@ -2356,9 +2350,9 @@ drawing.addEventListener("pointerup", event => {
       const start = action.start;
       const w = Math.abs(end.x - start.x);
       const h = Math.abs(end.y - start.y);
-      const isDrag = w >= 8 || h >= 8;
-      const x = Math.min(start.x, end.x);
-      const y = Math.min(start.y, end.y);
+      const isDrag = w >= 24 && h >= 16;
+      const x = Math.max(0, Math.min(CANVAS_WIDTH - 60, Math.min(start.x, end.x)));
+      const y = Math.max(0, Math.min(CANVAS_HEIGHT - 30, Math.min(start.y, end.y)));
       const fontSize = isDrag
         ? calcFitFontSize("Văn bản mới", w, h, currentTextBold)
         : (currentTextFontSize || 24);
@@ -3239,6 +3233,7 @@ window.addEventListener("resize", () => {
 document.querySelector("#canvas-stage").addEventListener("scroll", () => {
   renderSelectionToolbar();
   renderRulers();
+  repositionInlineTextEditor();
 });
 
 function applyStyleToShape(shape, property, val) {
@@ -3668,19 +3663,20 @@ const inlineTextEditor = document.querySelector("#canvas-inline-text-editor");
 function repositionInlineTextEditor() {
   if (!inlineTextEditor || inlineTextEditor.hidden || !currentEditingTextTarget) return;
   const { shape } = currentEditingTextTarget;
-  const stage = document.querySelector("#canvas-stage");
-  if (!stage) return;
-  const stageRect = stage.getBoundingClientRect();
-  const drawingRect = drawing.getBoundingClientRect();
+  const ctm = drawing.getScreenCTM();
+  if (!ctm) return;
 
-  const scaleX = drawingRect.width / CANVAS_WIDTH;
-  const scaleY = drawingRect.height / CANVAS_HEIGHT;
+  const pt = drawing.createSVGPoint();
+  pt.x = shape.x;
+  pt.y = shape.y;
+  const screenPt = pt.matrixTransform(ctm);
 
-  const left = (drawingRect.left - stageRect.left) + stage.scrollLeft + (shape.x * scaleX);
-  const top = (drawingRect.top - stageRect.top) + stage.scrollTop + (shape.y * scaleY);
+  const scaleX = ctm.a || 1;
+  const scaleY = ctm.d || 1;
 
-  inlineTextEditor.style.left = `${Math.round(left)}px`;
-  inlineTextEditor.style.top = `${Math.round(top)}px`;
+  inlineTextEditor.style.position = "fixed";
+  inlineTextEditor.style.left = `${Math.round(screenPt.x)}px`;
+  inlineTextEditor.style.top = `${Math.round(screenPt.y)}px`;
   inlineTextEditor.style.fontSize = `${Math.max(12, Math.round((shape.fontSize || 24) * scaleY))}px`;
 }
 
@@ -3688,18 +3684,18 @@ function openInlineTextEditor(shape, layerIndex, shapeIndex, initialBox = null) 
   if (!inlineTextEditor) return;
   currentEditingTextTarget = { shape, layerIndex, shapeIndex };
 
-  const stage = document.querySelector("#canvas-stage");
-  const stageRect = stage.getBoundingClientRect();
-  const drawingRect = drawing.getBoundingClientRect();
+  const ctm = drawing.getScreenCTM();
+  const pt = drawing.createSVGPoint();
+  pt.x = shape.x;
+  pt.y = shape.y;
+  const screenPt = ctm ? pt.matrixTransform(ctm) : { x: shape.x, y: shape.y };
 
-  const scaleX = drawingRect.width / CANVAS_WIDTH;
-  const scaleY = drawingRect.height / CANVAS_HEIGHT;
+  const scaleX = ctm ? ctm.a : (drawing.getBoundingClientRect().width / CANVAS_WIDTH);
+  const scaleY = ctm ? ctm.d : (drawing.getBoundingClientRect().height / CANVAS_HEIGHT);
 
-  const left = (drawingRect.left - stageRect.left) + stage.scrollLeft + (shape.x * scaleX);
-  const top = (drawingRect.top - stageRect.top) + stage.scrollTop + (shape.y * scaleY);
-
-  inlineTextEditor.style.left = `${Math.round(left)}px`;
-  inlineTextEditor.style.top = `${Math.round(top)}px`;
+  inlineTextEditor.style.position = "fixed";
+  inlineTextEditor.style.left = `${Math.round(screenPt.x)}px`;
+  inlineTextEditor.style.top = `${Math.round(screenPt.y)}px`;
 
   if (initialBox) {
     inlineTextEditor.style.width = `${Math.max(80, Math.round(initialBox.w * scaleX))}px`;
@@ -3715,8 +3711,10 @@ function openInlineTextEditor(shape, layerIndex, shapeIndex, initialBox = null) 
   inlineTextEditor.style.fontWeight = shape.bold ? "bold" : "normal";
   inlineTextEditor.style.fontStyle = shape.italic ? "italic" : "normal";
   inlineTextEditor.style.textDecoration = shape.underline ? "underline" : "none";
-  inlineTextEditor.style.color = shape.color || "#000000";
-  inlineTextEditor.style.backgroundColor = "transparent";
+  const textColor = shape.color || (theme === "dark" ? "#f1f5f9" : "#0f172a");
+  inlineTextEditor.style.color = textColor;
+  const isLight = textColor.toLowerCase() === "#ffffff" || textColor.toLowerCase() === "#fff" || textColor.toLowerCase() === "white";
+  inlineTextEditor.style.backgroundColor = isLight ? "rgba(15, 23, 42, 0.94)" : "rgba(255, 255, 255, 0.96)";
 
   inlineTextEditor.value = shape.text || "";
   inlineTextEditor.hidden = false;
@@ -4559,7 +4557,11 @@ async function connectCppBackend() {
   }
 }
 
-window.addEventListener("resize", renderSelectionToolbar);
+window.addEventListener("resize", () => {
+  renderSelectionToolbar();
+  repositionInlineTextEditor();
+});
+window.addEventListener("scroll", repositionInlineTextEditor, { passive: true });
 
 document.addEventListener("keydown", event => {
   if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "g") {
@@ -5774,7 +5776,9 @@ if (stageEl) {
           start = { x: Math.round(start.x / 20) * 20, y: Math.round(start.y / 20) * 20 };
         }
         pointerAction = { mode: "marquee", start, moved: false };
-        drawing.setPointerCapture(e.pointerId);
+        try {
+          stageEl.setPointerCapture(e.pointerId);
+        } catch (_) {}
         return;
       }
     }
@@ -5795,6 +5799,15 @@ if (stageEl) {
   });
 
   stageEl.addEventListener("pointermove", e => {
+    if (pointerAction && pointerAction.mode === "marquee") {
+      pointerAction.moved = true;
+      let point = pointFromEvent(e);
+      if (snapToGrid) {
+        point = { x: Math.round(point.x / 20) * 20, y: Math.round(point.y / 20) * 20 };
+      }
+      updateMarqueeBox(pointerAction.start, point);
+      return;
+    }
     if (e.pointerType === "touch" && activeTouchPoints.has(e.pointerId)) {
       activeTouchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (activeTouchPoints.size === 2 && initialPinchDistance && initialPinchDistance > 10) {
@@ -5819,8 +5832,50 @@ if (stageEl) {
     }
   };
 
-  stageEl.addEventListener("pointerup", clearTouchPoint);
-  stageEl.addEventListener("pointercancel", clearTouchPoint);
+  const handleStagePointerUp = e => {
+    clearTouchPoint(e);
+    if (pointerAction && pointerAction.mode === "marquee") {
+      removeMarqueeBox();
+      const end = pointFromEvent(e);
+      const rect = {
+        x: Math.min(pointerAction.start.x, end.x),
+        y: Math.min(pointerAction.start.y, end.y),
+        w: Math.abs(end.x - pointerAction.start.x),
+        h: Math.abs(end.y - pointerAction.start.y)
+      };
+      pointerAction = null;
+      if (rect.w >= 3 && rect.h >= 3) {
+        const found = [];
+        layers.forEach((layer, lIdx) => {
+          if (!layer.visible || layer.locked) return;
+          layer.shapes.forEach((shape, sIdx) => {
+            const b = shapeBounds(shape);
+            const intersects = !(b.x + b.w < rect.x || b.x > rect.x + rect.w || b.y + b.h < rect.y || b.y > rect.y + rect.h);
+            if (intersects) found.push({ layer: lIdx, shape: sIdx });
+          });
+        });
+        selectedItems = found;
+        selected = found.length > 0 ? found[found.length - 1] : null;
+        render();
+        renderSelectionToolbar();
+        setStatus(found.length > 0 ? `Đã quét chọn ${found.length} hình` : "Không có hình nào trong vùng chọn");
+      } else {
+        selected = null;
+        selectedItems = [];
+        render();
+        renderSelectionToolbar();
+      }
+    }
+  };
+
+  stageEl.addEventListener("pointerup", handleStagePointerUp);
+  stageEl.addEventListener("pointercancel", e => {
+    clearTouchPoint(e);
+    if (pointerAction && pointerAction.mode === "marquee") {
+      removeMarqueeBox();
+      pointerAction = null;
+    }
+  });
 }
 
 // Tự động fit canvas khi xoay màn hình (orientation change)

@@ -574,38 +574,12 @@
         <p class="property-empty" id="property-empty">Chọn một hình trên canvas để chỉnh màu và nét vẽ.</p>
         <div class="property-controls" id="property-controls" hidden>
           <label class="color-property"><span>Màu viền</span><input id="stroke-color" type="color" value="#000000"></label>
-          <div class="color-palette-bar" data-target="stroke-color">
-            <button type="button" class="color-swatch-btn" data-color="#000000" style="background:#000000;" title="Đen"></button>
-            <button type="button" class="color-swatch-btn" data-color="#ffffff" style="background:#ffffff;" title="Trắng"></button>
-            <button type="button" class="color-swatch-btn" data-color="#64748b" style="background:#64748b;" title="Xám"></button>
-            <button type="button" class="color-swatch-btn" data-color="#ef4444" style="background:#ef4444;" title="Đỏ"></button>
-            <button type="button" class="color-swatch-btn" data-color="#f97316" style="background:#f97316;" title="Cam"></button>
-            <button type="button" class="color-swatch-btn" data-color="#eab308" style="background:#eab308;" title="Vàng"></button>
-            <button type="button" class="color-swatch-btn" data-color="#22c55e" style="background:#22c55e;" title="Xanh lá"></button>
-            <button type="button" class="color-swatch-btn" data-color="#06b6d4" style="background:#06b6d4;" title="Cyan"></button>
-            <button type="button" class="color-swatch-btn" data-color="#3b82f6" style="background:#3b82f6;" title="Xanh dương"></button>
-            <button type="button" class="color-swatch-btn" data-color="#8b5cf6" style="background:#8b5cf6;" title="Tím"></button>
-            <button type="button" class="color-swatch-btn" data-color="#ec4899" style="background:#ec4899;" title="Hồng"></button>
-          </div>
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
             <label class="color-property" style="flex:1;"><span>Màu nền</span><input id="fill-color" type="color" value="#ffffff"></label>
             <label style="display:flex; align-items:center; gap:4px; font-size:11px; color:#c3ccd7; cursor:pointer;" title="Nền trong suốt (không tô màu)">
               <input type="checkbox" id="fill-transparent-checkbox" checked style="cursor:pointer; accent-color:var(--accent);">
               <span>Trong suốt</span>
             </label>
-          </div>
-          <div class="color-palette-bar" data-target="fill-color">
-            <button type="button" class="color-swatch-btn" data-color="#ffffff" style="background:#ffffff;" title="Trắng"></button>
-            <button type="button" class="color-swatch-btn" data-color="#000000" style="background:#000000;" title="Đen"></button>
-            <button type="button" class="color-swatch-btn" data-color="#cbd5e1" style="background:#cbd5e1;" title="Xám nhạt"></button>
-            <button type="button" class="color-swatch-btn" data-color="#fca5a5" style="background:#fca5a5;" title="Đỏ nhạt"></button>
-            <button type="button" class="color-swatch-btn" data-color="#fdba74" style="background:#fdba74;" title="Cam nhạt"></button>
-            <button type="button" class="color-swatch-btn" data-color="#fef08a" style="background:#fef08a;" title="Vàng nhạt"></button>
-            <button type="button" class="color-swatch-btn" data-color="#86efac" style="background:#86efac;" title="Xanh lá nhạt"></button>
-            <button type="button" class="color-swatch-btn" data-color="#67e8f9" style="background:#67e8f9;" title="Cyan nhạt"></button>
-            <button type="button" class="color-swatch-btn" data-color="#93c5fd" style="background:#93c5fd;" title="Xanh dương nhạt"></button>
-            <button type="button" class="color-swatch-btn" data-color="#c4b5fd" style="background:#c4b5fd;" title="Tím nhạt"></button>
-            <button type="button" class="color-swatch-btn" data-color="#f472b6" style="background:#f472b6;" title="Hồng nhạt"></button>
           </div>
           <label class="range-property"><span>Độ dày <output id="width-value">2</output></span><input id="stroke-width" type="range" min="1" max="12" value="2"></label>
         </div>
@@ -619,18 +593,6 @@
             </select>
           </label>
           <label class="color-property"><span>Màu bút</span><input id="brush-color" type="color" value="#334155"></label>
-          <div class="color-palette-bar" data-target="brush-color">
-            <button type="button" class="color-swatch-btn" data-color="#334155" style="background:#334155;" title="Slate"></button>
-            <button type="button" class="color-swatch-btn" data-color="#000000" style="background:#000000;" title="Đen"></button>
-            <button type="button" class="color-swatch-btn" data-color="#ef4444" style="background:#ef4444;" title="Đỏ"></button>
-            <button type="button" class="color-swatch-btn" data-color="#f97316" style="background:#f97316;" title="Cam"></button>
-            <button type="button" class="color-swatch-btn" data-color="#eab308" style="background:#eab308;" title="Vàng"></button>
-            <button type="button" class="color-swatch-btn" data-color="#22c55e" style="background:#22c55e;" title="Xanh lá"></button>
-            <button type="button" class="color-swatch-btn" data-color="#06b6d4" style="background:#06b6d4;" title="Cyan"></button>
-            <button type="button" class="color-swatch-btn" data-color="#3b82f6" style="background:#3b82f6;" title="Xanh dương"></button>
-            <button type="button" class="color-swatch-btn" data-color="#8b5cf6" style="background:#8b5cf6;" title="Tím"></button>
-            <button type="button" class="color-swatch-btn" data-color="#ec4899" style="background:#ec4899;" title="Hồng"></button>
-          </div>
           <label class="range-property"><span>Cỡ bút <output id="brush-width-value">6</output></span><input id="brush-width" type="range" min="1" max="40" value="6"></label>
           <label class="range-property" id="brush-opacity-control"><span>Độ đậm <output id="brush-opacity-value">100%</output></span><input id="brush-opacity" type="range" min="10" max="100" value="100"></label>
         </div>
@@ -668,19 +630,6 @@
             <span>Màu chữ</span>
             <input id="text-color" type="color" value="#000000">
           </label>
-          <div class="color-palette-bar" data-target="text-color">
-            <button type="button" class="color-swatch-btn" data-color="#000000" style="background:#000000;" title="Đen"></button>
-            <button type="button" class="color-swatch-btn" data-color="#ffffff" style="background:#ffffff;" title="Trắng"></button>
-            <button type="button" class="color-swatch-btn" data-color="#64748b" style="background:#64748b;" title="Xám"></button>
-            <button type="button" class="color-swatch-btn" data-color="#ef4444" style="background:#ef4444;" title="Đỏ"></button>
-            <button type="button" class="color-swatch-btn" data-color="#f97316" style="background:#f97316;" title="Cam"></button>
-            <button type="button" class="color-swatch-btn" data-color="#eab308" style="background:#eab308;" title="Vàng"></button>
-            <button type="button" class="color-swatch-btn" data-color="#22c55e" style="background:#22c55e;" title="Xanh lá"></button>
-            <button type="button" class="color-swatch-btn" data-color="#06b6d4" style="background:#06b6d4;" title="Cyan"></button>
-            <button type="button" class="color-swatch-btn" data-color="#3b82f6" style="background:#3b82f6;" title="Xanh dương"></button>
-            <button type="button" class="color-swatch-btn" data-color="#8b5cf6" style="background:#8b5cf6;" title="Tím"></button>
-            <button type="button" class="color-swatch-btn" data-color="#ec4899" style="background:#ec4899;" title="Hồng"></button>
-          </div>
           <div class="text-style-bar" style="display:flex; gap:6px; align-items:center; margin-top:2px;">
             <span style="color:#c3ccd7; font-size:11px; flex:1;">Kiểu chữ</span>
             <div style="display:flex; gap:5px;">

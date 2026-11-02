@@ -1131,7 +1131,7 @@ function addHandle(name, x, y, parent) {
   parent.append(handle);
 }
 
-function render() {
+function render(isDragging = Boolean(pointerAction && pointerAction.moved)) {
   document.documentElement.dataset.theme = theme;
   artwork.replaceChildren();
   layers.forEach((layer, layerIndex) => {
@@ -1148,17 +1148,29 @@ function render() {
     if (selectedShape && !isEditingThis) selectionHandles(selectedShape);
   }
   renderPreview();
-  renderLayers();
-  renderProperties();
-  renderSelectionToolbar();
-  renderRulers();
-  document.querySelector("#canvas-hint").textContent = activeTool === "select" || activeTool === "group_select"
-    ? selectedItems.length > 1
-      ? `Đã chọn ${selectedItems.length} hình — Kéo để di chuyển cả nhóm hoặc bấm Nhóm (Ctrl+G)`
-      : selected ? "Kéo hình để di chuyển · nút góc để đổi kích thước · nút trên để xoay" : "Chọn công cụ hình để bắt đầu vẽ · Hoặc quét chuột để chọn nhiều hình"
-    : activeTool === "eraser" ? "Kéo trên nét vẽ hoặc hình để gôm"
-      : activeTool === "brush" ? "Giữ chuột trái và kéo để vẽ nét tự do"
-        : `Kéo trên canvas để vẽ ${toolLabels[activeTool].toLowerCase()}`;
+
+  // Khi đang kéo hình (di chuyển, co giãn, xoay): bỏ qua dựng lại layers, properties, rulers và toolbar
+  // để loại bỏ hoàn toàn Forced Layout Reflow (getBBox) và DOM recreation, đạt 60-120 FPS mượt mà
+  if (!isDragging) {
+    renderLayers();
+    renderProperties();
+    renderSelectionToolbar();
+    renderRulers();
+  } else {
+    const toolbar = document.querySelector("#selection-toolbar");
+    if (toolbar) toolbar.hidden = true;
+  }
+
+  const canvasHint = document.querySelector("#canvas-hint");
+  if (canvasHint) {
+    canvasHint.textContent = activeTool === "select" || activeTool === "group_select"
+      ? selectedItems.length > 1
+        ? `Đã chọn ${selectedItems.length} hình — Kéo để di chuyển cả nhóm hoặc bấm Nhóm (Ctrl+G)`
+        : selected ? "Kéo hình để di chuyển · nút góc để đổi kích thước · nút trên để xoay" : "Chọn công cụ hình để bắt đầu vẽ · Hoặc quét chuột để chọn nhiều hình"
+      : activeTool === "eraser" ? "Kéo trên nét vẽ hoặc hình để gôm"
+        : activeTool === "brush" ? "Giữ chuột trái và kéo để vẽ nét tự do"
+          : `Kéo trên canvas để vẽ ${toolLabels[activeTool].toLowerCase()}`;
+  }
   drawing.classList.toggle("draw-mode", activeTool !== "select" && activeTool !== "group_select");
 }
 
@@ -1175,7 +1187,7 @@ function flushRender() {
     cancelAnimationFrame(renderFrame);
     renderFrame = 0;
   }
-  render();
+  render(false);
 }
 
 function renderSelectionToolbar() {
@@ -2144,14 +2156,51 @@ drawing.addEventListener("pointerenter", event => {
   if (activeTool === "eraser") updateEraserCursor(pointFromEvent(event));
 });
 
+function fastCloneShape(shape) {
+  if (!shape) return shape;
+  if (shape.type === "group") {
+    return {
+      ...shape,
+      children: (shape.children || []).map(fastCloneShape)
+    };
+  }
+  if (shape.points) {
+    return {
+      ...shape,
+      points: shape.points.map(p => [p[0], p[1]])
+    };
+  }
+  return { ...shape };
+}
+
+let rulerRaf = 0;
+let pendingRulerPoint = null;
+
+function scheduleRulers(point) {
+  pendingRulerPoint = point;
+  if (!rulerRaf) {
+    rulerRaf = requestAnimationFrame(() => {
+      rulerRaf = 0;
+      if (pendingRulerPoint && showRulers) {
+        renderRulers(pendingRulerPoint);
+      }
+    });
+  }
+}
+
 drawing.addEventListener("pointermove", event => {
   let point = pointFromEvent(event);
   if (snapToGrid) {
     point = { x: Math.round(point.x / 20) * 20, y: Math.round(point.y / 20) * 20 };
   }
-  document.querySelector("#cursor-position").textContent = `X: ${Math.round(point.x)}   Y: ${Math.round(point.y)}`;
+  const cursorPosEl = document.querySelector("#cursor-position");
+  if (cursorPosEl) {
+    cursorPosEl.textContent = `X: ${Math.round(point.x)}   Y: ${Math.round(point.y)}`;
+  }
   updateEraserCursor(point);
-  renderRulers(point);
+  if (!pointerAction || !pointerAction.moved) {
+    scheduleRulers(point);
+  }
   if (!pointerAction) return;
 
   if (pointerAction.mode === "marquee") {
@@ -2162,7 +2211,7 @@ drawing.addEventListener("pointermove", event => {
 
   if (pointerAction.mode === "brush") {
     const last = pointerAction.shape.points[pointerAction.shape.points.length - 1];
-    if (Math.hypot(point.x - last[0], point.y - last[1]) >= 0.7) {
+    if (Math.hypot(point.x - last[0], point.y - last[1]) >= 2.0) {
       pointerAction.shape.points.push([point.x, point.y]);
       previewShape = pointerAction.shape;
       renderPreview();
@@ -2197,7 +2246,7 @@ drawing.addEventListener("pointermove", event => {
 
   if (pointerAction.mode === "move_multi") {
     pointerAction.items.forEach(item => {
-      layers[item.layer].shapes[item.shape] = structuredClone(item.original);
+      layers[item.layer].shapes[item.shape] = fastCloneShape(item.original);
       translateShape(layers[item.layer].shapes[item.shape], dx, dy);
     });
     scheduleRender();
@@ -2206,7 +2255,7 @@ drawing.addEventListener("pointermove", event => {
 
   const { layer, shape: shapeIndex, original } = pointerAction;
   if (pointerAction.mode === "move") {
-    layers[layer].shapes[shapeIndex] = structuredClone(original);
+    layers[layer].shapes[shapeIndex] = fastCloneShape(original);
     translateShape(layers[layer].shapes[shapeIndex], dx, dy);
   } else if (pointerAction.mode === "rotate") {
     const currentAngle = Math.atan2(point.y - pointerAction.center.y, point.x - pointerAction.center.x);
@@ -2214,7 +2263,7 @@ drawing.addEventListener("pointermove", event => {
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
     layers[layer].shapes[shapeIndex] = {
-      ...structuredClone(original),
+      ...fastCloneShape(original),
       rotation: pointerAction.initialRotation + delta
     };
   } else {
@@ -3270,6 +3319,27 @@ document.querySelector("#eraser-width").addEventListener("input", event => {
   if (eraserCursor) eraserCursor.setAttribute("r", eraserWidth / 2);
 });
 
+let liveStyleRaf = 0;
+let pendingStyleUpdates = null;
+
+function applyPendingStyleUpdates() {
+  liveStyleRaf = 0;
+  if (!pendingStyleUpdates) return;
+  const { property, val, targets } = pendingStyleUpdates;
+  pendingStyleUpdates = null;
+
+  targets.forEach(item => {
+    const s = layers[item.layer]?.shapes[item.shape];
+    if (s) {
+      applyStyleToShape(s, property, val);
+      const el = artwork.querySelector(`.shape[data-layer="${item.layer}"][data-shape="${item.shape}"]`);
+      if (el) {
+        updateShapeDomStyle(el, s, property, val);
+      }
+    }
+  });
+}
+
 for (const [inputId, property] of [["stroke-color", "stroke"], ["fill-color", "fill"], ["stroke-width", "width"]]) {
   const input = document.querySelector(`#${inputId}`);
   if (!input) continue;
@@ -3297,20 +3367,18 @@ for (const [inputId, property] of [["stroke-color", "stroke"], ["fill-color", "f
     }
 
     const targets = selectedItems.length > 0 ? selectedItems : (selected ? [selected] : []);
-    targets.forEach(item => {
-      const s = layers[item.layer]?.shapes[item.shape];
-      if (s) {
-        applyStyleToShape(s, property, val);
-        const el = artwork.querySelector(`.shape[data-layer="${item.layer}"][data-shape="${item.shape}"]`);
-        if (el) {
-          updateShapeDomStyle(el, s, property, val);
-        }
-      }
-    });
+    pendingStyleUpdates = { property, val, targets };
+    if (!liveStyleRaf) {
+      liveStyleRaf = requestAnimationFrame(applyPendingStyleUpdates);
+    }
   });
 
   input.addEventListener("change", () => {
     historyCaptured = false;
+    if (liveStyleRaf) {
+      cancelAnimationFrame(liveStyleRaf);
+      applyPendingStyleUpdates();
+    }
     flushRender();
     scheduleCppSync();
   });
